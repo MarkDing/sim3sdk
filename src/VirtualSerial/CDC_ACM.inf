@@ -1,0 +1,65 @@
+; CDC_ACM.inf
+;
+; INF file for SiM3u1xx
+;
+; 1) Replace VID/PID to your own in [MYCORP] section
+;      VID_vvvv&PID_pppp
+;          vvvv, pppp: four digit hex number of VID and PID, respectively
+;
+; 2) Replace 'MYCORP' to your own abbreviated one (without space)
+;      ex Silicon Laboratories -> SILABS
+;     - Replace all MYCORP in this inf file
+;
+; 3) Replace 'MYDEV000' to your device model number (without space)
+;      ex SiM3U1xx Development kit -> SiM3U1xx
+;     - Replace all MYDEV000 in this inf file
+;
+; 4) Edit the strings in [Strings] section
+;
+
+[Version]
+Signature="$Windows NT$"
+Class=Ports
+ClassGuid={4D36E978-E325-11CE-BFC1-08002BE10318}
+
+Provider=%SILABS%
+LayoutFile=layout.inf
+DriverVer=08/04/2004,5.1.2600.2180
+
+[Manufacturer]
+%SILABS%=SILABS
+
+[SILABS]
+%SiM3U1xx%= SiM3U1xx,USB\VID_10C4&PID_A002
+
+
+[DestinationDirs] 
+FakeModemCopyFileSection=12
+DefaultDestDir = 12
+
+[SiM3U1xx.NT]
+include=mdmcpq.inf
+CopyFiles=FakeModemCopyFileSection
+AddReg=SiM3U1xx.NT.AddReg
+
+[SiM3U1xx.NT.Services]
+AddService = usbser, 0x00000002, Service_Inst
+
+[Service_Inst]
+DisplayName = %Serial.SvcDesc%
+ServiceType = 1 ; SERVICE_KERNEL_DRIVER
+StartType = 3 ; SERVICE_DEMAND_START
+ErrorControl = 1 ; SERVICE_ERROR_NORMAL
+ServiceBinary = %12%\usbser.sys
+LoadOrderGroup = Base
+
+[SiM3U1xx.NT.AddReg]
+HKR,,NTMPDriver,,*ntkern
+HKR,,NTMPDriver,,usbser.sys
+HKR,,EnumPropPages32,,"MsPorts.dll,SerialPortPropPageProvider"
+HKR,,PortSubClass,1,01
+
+[Strings] 
+SILABS = "Silicon Laboratories"             ; Your company name
+SiM3U1xx = "SiM3U1xx CDC ACM device"   ; Device description
+Serial.SvcDesc = "CDC ACM Driver"     ; Device driver description
