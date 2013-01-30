@@ -55,7 +55,7 @@ const USB_Descriptor_Device_t PROGMEM DeviceDescriptor =
 	.Endpoint0Size          = ENDPOINT_CONTROLEP_DEFAULT_SIZE,
 
 	.VendorID               = 0x10C4,
-	.ProductID              = 0xA002,
+	.ProductID              = 0xA003,
 	.ReleaseNumber          = VERSION_BCD(00.01),
 
 	.ManufacturerStrIndex   = 0x01,

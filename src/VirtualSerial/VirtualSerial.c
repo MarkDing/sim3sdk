@@ -36,19 +36,8 @@
 
 #include "VirtualSerial.h"
 #include "gUART0.h"
-extern void EVENT_USB_recv_data(void);
-extern void EVENT_USB_send_data(void);
-/** Circular buffer to hold data from the host before it is sent to the device via the serial port. */
-static RingBuffer_t USBtoUSART_Buffer;
-
-/** Underlying data buffer for \ref USBtoUSART_Buffer, where the stored bytes are located. */
-static uint8_t      USBtoUSART_Buffer_Data[256];
-
-/** Circular buffer to hold data from the serial port before it is sent to the host. */
-static RingBuffer_t USARTtoUSB_Buffer;
-
-/** Underlying data buffer for \ref USARTtoUSB_Buffer, where the stored bytes are located. */
-static uint8_t      USARTtoUSB_Buffer_Data[256];
+void VCOM_bridge(void);
+void VCOM_echo(void);
 
 /** LUFA CDC Class driver interface configuration and state information. This structure is
  *  passed to all CDC Class driver functions, so that multiple instances of the same class
@@ -79,76 +68,46 @@ USB_ClassInfo_CDC_Device_t VirtualSerial_CDC_Interface =
 		},
 	},
 };
-
-void uart_rev_handler(void)
-{
-	uint8_t count = SI32_UART_A_read_rx_fifo_count(SI32_UART_0);
-	uint8_t ReceivedByte;
-
-	while(count--)
-	{
-		ReceivedByte = uart_get_byte();
-		if (USB_DeviceState == DEVICE_STATE_Configured)
-		{
-			RingBuffer_Insert(&USARTtoUSB_Buffer, ReceivedByte);
-		}
-	}
-}
-
 /** Main program entry point. This routine contains the overall program flow, including initial
  *  setup of all components and the main program loop.
  */
 int vcp_main(void)
 {
     USB_Init(USB_DEVICE_OPT_FULLSPEED);
-	RingBuffer_InitBuffer(&USBtoUSART_Buffer, USBtoUSART_Buffer_Data, sizeof(USBtoUSART_Buffer_Data));
-	RingBuffer_InitBuffer(&USARTtoUSB_Buffer, USARTtoUSB_Buffer_Data, sizeof(USARTtoUSB_Buffer_Data));
 
 	while(1)
 	{
-		EVENT_USB_recv_data();
-		EVENT_USB_send_data();
+//		VCOM_echo();
+		VCOM_bridge();
 	}
 }
 
-void EVENT_USB_send_data(void)
+static uint8_t out_buff[CDC_TXRX_EPSIZE];
+static uint8_t in_buff[CDC_TXRX_EPSIZE];
+
+void VCOM_echo(void)
 {
-	uint16_t BufferCount = RingBuffer_GetCount(&USARTtoUSB_Buffer);
-	if(BufferCount > 0)
+	if(CDC_Device_BytesReceived(&VirtualSerial_CDC_Interface))
 	{
-		/* Read bytes from the USART receive buffer into the USB IN endpoint */
-		while (BufferCount--)
-		{
-			/* Try to send the next byte of data to the host, abort if there is an error without dequeuing */
-			if (CDC_Device_SendByte(&VirtualSerial_CDC_Interface,
-									RingBuffer_Peek(&USARTtoUSB_Buffer)) != ENDPOINT_READYWAIT_NoError)
-			{
-				break;
-			}
-			/* Dequeue the already sent byte from the buffer now we have confirmed that no transmission error occurred */
-			RingBuffer_Remove(&USARTtoUSB_Buffer);
-		}
+		in_buff[0] = CDC_Device_ReceiveByte(&VirtualSerial_CDC_Interface);
+		CDC_Device_SendData(&VirtualSerial_CDC_Interface, (char *)in_buff, 1);
 		Endpoint_ClearIN();
 	}
 }
-
-void EVENT_USB_recv_data(void)
+void VCOM_bridge(void)
 {
-	uint16_t count, ReceivedByte;
-	count = CDC_Device_BytesReceived(&VirtualSerial_CDC_Interface);
-	while(count--)
+	uint32_t recv_count;
+	recv_count = CDC_Device_BytesReceived(&VirtualSerial_CDC_Interface);
+	while(recv_count--)
 	{
-		// Only try to read in bytes from the CDC interface if the transmit buffer is not full
-		if (!(RingBuffer_IsFull(&USBtoUSART_Buffer)))
-		{
-			ReceivedByte = CDC_Device_ReceiveByte(&VirtualSerial_CDC_Interface);
-			// Read bytes from the USB OUT endpoint into the USART transmit buffer
-			if (!(ReceivedByte < 0))
-			{
-			  RingBuffer_Insert(&USBtoUSART_Buffer, ReceivedByte);
-			  uart_send_byte(RingBuffer_Remove(&USBtoUSART_Buffer));
-			}
-		}
+		out_buff[0] = CDC_Device_ReceiveByte(&VirtualSerial_CDC_Interface);
+		uart_send_byte(out_buff[0]);
+	}
+	recv_count = uart_get_data(in_buff);
+	if(recv_count)
+	{
+		CDC_Device_SendData(&VirtualSerial_CDC_Interface, (char *)in_buff, recv_count);
+		Endpoint_ClearIN();
 	}
 }
 

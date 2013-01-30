@@ -30,7 +30,7 @@ void UART0_IRQHandler()
 {
   if (SI32_UART_A_is_rx_data_request_interrupt_pending(SI32_UART_0))
   {
-	  uart_rev_handler();
+//	  uart_rev_handler();
   }
 }
 
@@ -61,6 +61,19 @@ void uart_send_data(unsigned char *data, unsigned int count)
    }
 }
 
+uint32_t uart_get_data(uint8_t * data)
+{
+	uint32_t recv_bytes, count;
+	recv_bytes = SI32_UART_A_read_rx_fifo_count(SI32_UART_0);
+	count = recv_bytes;
+	while(count--)
+	{
+		*data++ = SI32_UART_A_read_data_u8(SI32_UART_0);
+	}
+	return recv_bytes;
+}
+
+#if 0
 int uart_get_data(unsigned char *data, unsigned int count)
 {
    unsigned int time_out;
@@ -78,7 +91,7 @@ int uart_get_data(unsigned char *data, unsigned int count)
    }
    return 0;
 }
-
+#endif
 /*
  *   baud_rate: baud rate
  *   stop_bits: 0 - 1 stop bit; 1 - 1.5 stop bits; 2 - 2 stop bits
@@ -149,9 +162,9 @@ void UART0_enter_default_mode_from_reset(void)
     SI32_UART_A_enable_rx(SI32_UART_0);
 
 
-    SI32_UART_A_enable_rx_data_request_interrupt(SI32_UART_0);
-    NVIC_ClearPendingIRQ(UART0_IRQn);
-    NVIC_EnableIRQ(UART0_IRQn);
+//    SI32_UART_A_enable_rx_data_request_interrupt(SI32_UART_0);
+//    NVIC_ClearPendingIRQ(UART0_IRQn);
+//    NVIC_EnableIRQ(UART0_IRQn);
 
 }
 
