@@ -22,9 +22,9 @@
 #include <SI32_PBSTD_A_Type.h>
 #include <SI32_WDTIMER_A_Type.h>
 
-#ifdef DEBUG
+//#ifdef DEBUG
 #define printf(...)
-#endif
+//#endif
 
 void set_ahb_clock(uint32_t freq);
 void halt(void);

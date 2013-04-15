@@ -309,6 +309,7 @@ uint8_t Endpoint_Read_Stream_LE(void* const Buffer,
 uint8_t Endpoint_Write_Control_Stream_LE(const void* const Buffer,
 		uint16_t Length)
 {
+	// TODO should we consider add endpoint 0 selected before ?
 	Endpoint_Write_Stream_LE((uint8_t*)Buffer, MIN(Length, USB_ControlRequest.wLength), NULL);
 	Endpoint_ClearIN();
 	return ENDPOINT_RWCSTREAM_NoError;

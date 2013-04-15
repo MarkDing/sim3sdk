@@ -39,7 +39,7 @@
 	/* Includes: */
 
 		#include "Descriptors.h"
-		#include <LUFA/Drivers/Misc/RingBuffer.h>
+		//#include <LUFA/Drivers/Misc/RingBuffer.h>
 
 	/* Macros: */
 	/* Function Prototypes: */

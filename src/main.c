@@ -16,7 +16,7 @@
 #include "gCPU.h"
 #include "diskio.h"
 #include "ff.h"
-extern int vcp_main(void);
+extern void vcp_main(void);
 
 
 uint8_t sec_buf[512];
@@ -33,12 +33,12 @@ void die (		/* Stop with dying message */
 }
 DWORD get_fattime (void)
 {
-	return	  ((DWORD)(2013 - 1980) << 25)	/* Year = 2012 */
+	return	  (((DWORD)(2013 - 1980) << 25)	/* Year = 2012 */
 			| ((DWORD)1 << 21)				/* Month = 1 */
 			| ((DWORD)1 << 16)				/* Day_m = 1*/
 			| ((DWORD)0 << 11)				/* Hour = 0 */
 			| ((DWORD)0 << 5)				/* Min = 0 */
-			| ((DWORD)0 >> 1);				/* Sec = 0 */
+			| ((DWORD)0 >> 1));				/* Sec = 0 */
 }
 void fatfs_test()
 {
@@ -147,10 +147,12 @@ int main()
    enter_default_mode_from_reset();
    printf("hello2\n");
 
+#if 0
    fatfs_test();
    disk_initialize(0);
    disk_read(0,sec_buf,0,1);
    while(1);
+#endif
 
    vcp_main();
    while (1)
