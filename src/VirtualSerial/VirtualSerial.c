@@ -43,20 +43,20 @@ void VCOM_echo(void);
  *  passed to all CDC Class driver functions, so that multiple instances of the same class
  *  within a device can be differentiated from one another.
  */
-USB_ClassInfo_CDC_Device_t VirtualSerial_CDC_Interface =
+USB_ClassInfo_CDC_Device_t VirtualSerial_CDC1_Interface =
 {
 	.Config =
 	{
 		.ControlInterfaceNumber   = 0,
 		.DataINEndpoint           =
 		{
-			.Address          = CDC_TX_EPADDR,
+			.Address          = CDC1_TX_EPADDR,
 			.Size             = CDC_TXRX_EPSIZE,
 			.Banks            = 1,
 		},
 		.DataOUTEndpoint =
 		{
-			.Address          = CDC_RX_EPADDR,
+			.Address          = CDC1_RX_EPADDR,
 			.Size             = CDC_TXRX_EPSIZE,
 			.Banks            = 1,
 		},
@@ -68,6 +68,63 @@ USB_ClassInfo_CDC_Device_t VirtualSerial_CDC_Interface =
 		},
 	},
 };
+
+
+#if (DUAL_VCP_ENABLE || TRI_VCP_ENABLE)
+USB_ClassInfo_CDC_Device_t VirtualSerial_CDC2_Interface =
+{
+	.Config =
+	{
+		.ControlInterfaceNumber   = 2,
+		.DataINEndpoint           =
+		{
+			.Address          = CDC2_TX_EPADDR,
+			.Size             = CDC_TXRX_EPSIZE,
+			.Banks            = 1,
+		},
+		.DataOUTEndpoint =
+		{
+			.Address          = CDC2_RX_EPADDR,
+			.Size             = CDC_TXRX_EPSIZE,
+			.Banks            = 1,
+		},
+		.NotificationEndpoint =
+		{
+			.Address          = CDC_NOTIFICATION_EPADDR,
+			.Size             = CDC_NOTIFICATION_EPSIZE,
+			.Banks            = 1,
+		},
+	},
+};
+#endif
+
+#if (TRI_VCP_ENABLE)
+USB_ClassInfo_CDC_Device_t VirtualSerial_CDC3_Interface =
+{
+    .Config =
+    {
+        .ControlInterfaceNumber   = 4,
+        .DataINEndpoint           =
+        {
+            .Address          = CDC3_TX_EPADDR,
+            .Size             = CDC_TXRX_EPSIZE,
+            .Banks            = 1,
+        },
+        .DataOUTEndpoint =
+        {
+            .Address          = CDC3_RX_EPADDR,
+            .Size             = CDC_TXRX_EPSIZE,
+            .Banks            = 1,
+        },
+        .NotificationEndpoint =
+        {
+            .Address          = CDC_NOTIFICATION_EPADDR,
+            .Size             = CDC_NOTIFICATION_EPSIZE,
+            .Banks            = 1,
+        },
+    },
+};
+#endif
 /** Main program entry point. This routine contains the overall program flow, including initial
  *  setup of all components and the main program loop.
  */
@@ -77,36 +134,58 @@ void vcp_main(void)
 
 	while(1)
 	{
-//		VCOM_echo();
-		VCOM_bridge();
+		VCOM_echo();
+//		VCOM_bridge();
 	}
 }
 
 static uint8_t out_buff[CDC_TXRX_EPSIZE];
 static uint8_t in_buff[CDC_TXRX_EPSIZE];
+#if (DUAL_VCP_ENABLE || TRI_VCP_ENABLE)
+static uint8_t in2_buff[CDC_TXRX_EPSIZE];
+#endif
+#if (TRI_VCP_ENABLE)
+static uint8_t in3_buff[CDC_TXRX_EPSIZE];
+#endif
 
 void VCOM_echo(void)
 {
-	if(CDC_Device_BytesReceived(&VirtualSerial_CDC_Interface))
+	if(CDC_Device_BytesReceived(&VirtualSerial_CDC1_Interface))
 	{
-		in_buff[0] = CDC_Device_ReceiveByte(&VirtualSerial_CDC_Interface);
-		CDC_Device_SendData(&VirtualSerial_CDC_Interface, (char *)in_buff, 1);
+		in_buff[0] = CDC_Device_ReceiveByte(&VirtualSerial_CDC1_Interface);
+		CDC_Device_SendData(&VirtualSerial_CDC1_Interface, (char *)in_buff, 1);
 		Endpoint_ClearIN();
 	}
+#if (DUAL_VCP_ENABLE || TRI_VCP_ENABLE)
+	if(CDC_Device_BytesReceived(&VirtualSerial_CDC2_Interface))
+	{
+		in2_buff[0] = CDC_Device_ReceiveByte(&VirtualSerial_CDC2_Interface);
+		CDC_Device_SendData(&VirtualSerial_CDC2_Interface, (char *)in2_buff, 1);
+		Endpoint_ClearIN();
+	}
+#endif
+#if (TRI_VCP_ENABLE)
+    if(CDC_Device_BytesReceived(&VirtualSerial_CDC3_Interface))
+    {
+        in3_buff[0] = CDC_Device_ReceiveByte(&VirtualSerial_CDC3_Interface);
+        CDC_Device_SendData(&VirtualSerial_CDC3_Interface, (char *)in3_buff, 1);
+        Endpoint_ClearIN();
+    }
+#endif
 }
 void VCOM_bridge(void)
 {
 	uint32_t recv_count;
-	recv_count = CDC_Device_BytesReceived(&VirtualSerial_CDC_Interface);
+	recv_count = CDC_Device_BytesReceived(&VirtualSerial_CDC1_Interface);
 	while(recv_count--)
 	{
-		out_buff[0] = CDC_Device_ReceiveByte(&VirtualSerial_CDC_Interface);
+		out_buff[0] = CDC_Device_ReceiveByte(&VirtualSerial_CDC1_Interface);
 		uart_send_byte(out_buff[0]);
 	}
 	recv_count = uart_get_data(in_buff);
 	if(recv_count)
 	{
-		CDC_Device_SendData(&VirtualSerial_CDC_Interface, (char *)in_buff, recv_count);
+		CDC_Device_SendData(&VirtualSerial_CDC1_Interface, (char *)in_buff, recv_count);
 		Endpoint_ClearIN();
 	}
 }
@@ -126,14 +205,25 @@ void EVENT_USB_Device_ConfigurationChanged(void)
 {
 	bool ConfigSuccess = true;
 
-	ConfigSuccess &= CDC_Device_ConfigureEndpoints(&VirtualSerial_CDC_Interface);
-
+	ConfigSuccess &= CDC_Device_ConfigureEndpoints(&VirtualSerial_CDC1_Interface);
+#if (DUAL_VCP_ENABLE || TRI_VCP_ENABLE)
+	ConfigSuccess &= CDC_Device_ConfigureEndpoints(&VirtualSerial_CDC2_Interface);
+#endif
+#if (TRI_VCP_ENABLE)
+    ConfigSuccess &= CDC_Device_ConfigureEndpoints(&VirtualSerial_CDC3_Interface);
+#endif
 }
 
 /** Event handler for the library USB Control Request reception event. */
 void EVENT_USB_Device_ControlRequest(void)
 {
-	CDC_Device_ProcessControlRequest(&VirtualSerial_CDC_Interface);
+	CDC_Device_ProcessControlRequest(&VirtualSerial_CDC1_Interface);
+#if (DUAL_VCP_ENABLE || TRI_VCP_ENABLE)
+	CDC_Device_ProcessControlRequest(&VirtualSerial_CDC2_Interface);
+#endif
+#if (TRI_VCP_ENABLE)
+    CDC_Device_ProcessControlRequest(&VirtualSerial_CDC3_Interface);
+#endif
 }
 
 

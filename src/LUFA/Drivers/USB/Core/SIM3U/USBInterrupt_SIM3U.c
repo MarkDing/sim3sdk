@@ -44,7 +44,7 @@ void USB_INT_ClearAllInterrupts(void)
 	SI32_USB_A_write_cmint(SI32_USB_0, 0xF);
 	SI32_USB_A_write_ioint(SI32_USB_0, 0x001E001F);
 }
-extern void EVENT_USB_recv_data(void);
+//extern void EVENT_USB_recv_data(void);
 //------------------------------------------------------------------------------
 void USB0_epn_handler(void)
 {
@@ -64,7 +64,7 @@ void USB0_epn_handler(void)
 		(control_reg & SI32_USBEP_A_EPCONTROL_ISTSTLI_MASK))
 	{
 		ep->EPCONTROL.U32 |= (SI32_USBEP_A_EPCONTROL_OSTSTLI_MASK | SI32_USBEP_A_EPCONTROL_OORF_SET_U32
-				|SI32_USBEP_A_EPCONTROL_ISTSTLI_SET_U32|SI32_USBEP_A_EPCONTROL_IURF_SET_U32);
+				|SI32_USBEP_A_EPCONTROL_ISTSTLI_SET_U32|SI32_USBEP_A_EPCONTROL_IURF_SET_U32|SI32_USBEP_A_EPCONTROL_SPLITEN_ENABLED_VALUE);
 	}
 }
 
@@ -103,7 +103,7 @@ void USB0_IRQHandler(void)
 	  USB0_ep0_handler();
 	  return;
   }
-
+  uint32_t ep_selected_backup = usb_ep_selected;
   if (usbEpInterruptMask & (SI32_USB_A_IOINT_IN1I_MASK | SI32_USB_A_IOINT_OUT1I_MASK))
   {
 	  Endpoint_SelectEndpoint(1);
@@ -124,7 +124,7 @@ void USB0_IRQHandler(void)
 	  Endpoint_SelectEndpoint(4);
 	  USB0_epn_handler();
   }
-
+  usb_ep_selected = ep_selected_backup;
   // Handle Start of Frame Interrupt
   if (usbCommonInterruptMask & SI32_USB_A_CMINT_SOFI_MASK)
   {

@@ -265,6 +265,13 @@ uint8_t Endpoint_Write_Stream_LE(const void* const Buffer,
 			{
 				count = USB0_EP0_write_fifo(buf, Length);
 			}
+			if(Length == ENDPOINT_CONTROLEP_DEFAULT_SIZE)
+			{
+				SI32_USB_A_set_in_packet_ready_ep0(SI32_USB_0);
+				if ((ErrorCode = Endpoint_WaitUntilReady()) != ENDPOINT_READYWAIT_NoError)
+				  return ErrorCode;
+				SI32_USB_A_set_in_packet_ready_ep0(SI32_USB_0);
+			}
 			Length -= count;
 		}while(Length);
 	}

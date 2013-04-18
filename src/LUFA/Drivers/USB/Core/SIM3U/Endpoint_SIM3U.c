@@ -54,15 +54,15 @@ bool Endpoint_ConfigureEndpoint(const uint8_t Address,
 
 	if(Number != ENDPOINT_CONTROLEP)
 	{
-		ep_config = 0x450024; // bit 2,5,16,18,22 must be writen
-
+		ep_config = 0x450424;  // bit 2,5,10,16,18,22 must be written
+		                       //IURF,ISTSTLI,SPLITEN, OPRDYI,OORF,OSTSTLI
 		if(Type == EP_TYPE_ISOCHRONOUS)
 		{   // ISO transfer need set "1"
 			ep_config |= (SI32_USBEP_A_EPCONTROL_IISOEN_ISO_U32);
 		}
 		if(dir_sel)
 		{   // IN endpoint
-			ep_config |= (SI32_USBEP_A_EPCONTROL_DIRSEL_IN_U32|SI32_USBEP_A_EPCONTROL_ICLRDT_RESET_U32);
+            ep_config |= (SI32_USBEP_A_EPCONTROL_ICLRDT_RESET_U32);
 			SI32_USBEP_A_set_in_max_packet_size(USB_EPn(Number),Size>>3);
 		}
 		else
@@ -163,6 +163,7 @@ uint8_t Endpoint_WaitUntilReady(void)
 			  return ENDPOINT_READYWAIT_Timeout;
 		}
 	}
+	return ENDPOINT_READYWAIT_NoError;
 }
 #endif
 

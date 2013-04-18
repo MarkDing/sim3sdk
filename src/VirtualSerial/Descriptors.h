@@ -40,15 +40,33 @@
 		#include <LUFA/Drivers/USB/USB.h>
 
 	/* Macros: */
+        #define DUAL_VCP_ENABLE 1
+        #define TRI_VCP_ENABLE  0
+
 		/** Endpoint address of the CDC device-to-host notification IN endpoint. */
 		#define CDC_NOTIFICATION_EPADDR        (ENDPOINT_DIR_IN  | 1)
 
-		/** Endpoint address of the CDC device-to-host data IN endpoint. */
-		#define CDC_TX_EPADDR                  (ENDPOINT_DIR_IN  | 2)
+        /** Endpoint address of the CDC1 device-to-host data IN endpoint. */
+		#define CDC1_TX_EPADDR                  (ENDPOINT_DIR_IN  | 2)
 
-		/** Endpoint address of the CDC host-to-device data OUT endpoint. */
-		#define CDC_RX_EPADDR                  (ENDPOINT_DIR_OUT | 3)
+		/** Endpoint address of the CDC1 host-to-device data OUT endpoint. */
+		#define CDC1_RX_EPADDR                  (ENDPOINT_DIR_OUT | 2)
 
+#if (DUAL_VCP_ENABLE || TRI_VCP_ENABLE)
+        /** Endpoint address of the CDC2 device-to-host data IN endpoint. */
+        #define CDC2_TX_EPADDR                  (ENDPOINT_DIR_IN  | 3)
+
+        /** Endpoint address of the CDC2 host-to-device data OUT endpoint. */
+        #define CDC2_RX_EPADDR                  (ENDPOINT_DIR_OUT | 3)
+#endif
+
+#if (TRI_VCP_ENABLE)
+        /** Endpoint address of the CDC3 device-to-host data IN endpoint. */
+        #define CDC3_TX_EPADDR                  (ENDPOINT_DIR_IN  | 4)
+
+        /** Endpoint address of the CDC3 host-to-device data OUT endpoint. */
+        #define CDC3_RX_EPADDR                  (ENDPOINT_DIR_OUT | 4)
+#endif
 		/** Size in bytes of the CDC device-to-host notification IN endpoint. */
 		#define CDC_NOTIFICATION_EPSIZE        16
 
@@ -64,17 +82,48 @@
 		{
 			USB_Descriptor_Configuration_Header_t    Config;
 
-			// CDC Control Interface
-			USB_Descriptor_Interface_t               CDC_CCI_Interface;
-			USB_CDC_Descriptor_FunctionalHeader_t    CDC_Functional_Header;
-			USB_CDC_Descriptor_FunctionalACM_t       CDC_Functional_ACM;
-			USB_CDC_Descriptor_FunctionalUnion_t     CDC_Functional_Union;
-			USB_Descriptor_Endpoint_t                CDC_NotificationEndpoint;
+			// CDC1 Control Interface
+			USB_Descriptor_Interface_Association_t   CDC1_IAD;
+			USB_Descriptor_Interface_t               CDC1_CCI_Interface;
+			USB_CDC_Descriptor_FunctionalHeader_t    CDC1_Functional_Header;
+			USB_CDC_Descriptor_FunctionalACM_t       CDC1_Functional_ACM;
+			USB_CDC_Descriptor_FunctionalUnion_t     CDC1_Functional_Union;
+			USB_Descriptor_Endpoint_t                CDC1_NotificationEndpoint;
 
-			// CDC Data Interface
-			USB_Descriptor_Interface_t               CDC_DCI_Interface;
-			USB_Descriptor_Endpoint_t                CDC_DataOutEndpoint;
-			USB_Descriptor_Endpoint_t                CDC_DataInEndpoint;
+			// CDC1 Data Interface
+			USB_Descriptor_Interface_t               CDC1_DCI_Interface;
+			USB_Descriptor_Endpoint_t                CDC1_DataOutEndpoint;
+			USB_Descriptor_Endpoint_t                CDC1_DataInEndpoint;
+
+#if (DUAL_VCP_ENABLE || TRI_VCP_ENABLE)
+			// CDC2 Control Interface
+			USB_Descriptor_Interface_Association_t   CDC2_IAD;
+            USB_Descriptor_Interface_t               CDC2_CCI_Interface;
+            USB_CDC_Descriptor_FunctionalHeader_t    CDC2_Functional_Header;
+            USB_CDC_Descriptor_FunctionalACM_t       CDC2_Functional_ACM;
+            USB_CDC_Descriptor_FunctionalUnion_t     CDC2_Functional_Union;
+            USB_Descriptor_Endpoint_t                CDC2_NotificationEndpoint;
+
+            // CDC2 Data Interface
+            USB_Descriptor_Interface_t               CDC2_DCI_Interface;
+            USB_Descriptor_Endpoint_t                CDC2_DataOutEndpoint;
+            USB_Descriptor_Endpoint_t                CDC2_DataInEndpoint;
+#endif
+
+#if (TRI_VCP_ENABLE)
+            // CDC3 Control Interface
+            USB_Descriptor_Interface_Association_t   CDC3_IAD;
+            USB_Descriptor_Interface_t               CDC3_CCI_Interface;
+            USB_CDC_Descriptor_FunctionalHeader_t    CDC3_Functional_Header;
+            USB_CDC_Descriptor_FunctionalACM_t       CDC3_Functional_ACM;
+            USB_CDC_Descriptor_FunctionalUnion_t     CDC3_Functional_Union;
+            USB_Descriptor_Endpoint_t                CDC3_NotificationEndpoint;
+
+            // CDC3 Data Interface
+            USB_Descriptor_Interface_t               CDC3_DCI_Interface;
+            USB_Descriptor_Endpoint_t                CDC3_DataOutEndpoint;
+            USB_Descriptor_Endpoint_t                CDC3_DataInEndpoint;
+#endif
 		} USB_Descriptor_Configuration_t;
 
 	/* Function Prototypes: */

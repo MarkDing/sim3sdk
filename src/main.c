@@ -142,10 +142,10 @@ int main()
 
    while(SI32_PBSTD_A_read_pin(SI32_PBSTD_2,8) == 0);
 
-   printf("hello1\n");
+   //printf("hello1\n");
    // Enter the default operating mode for this application
    enter_default_mode_from_reset();
-   printf("hello2\n");
+   //printf("hello2\n");
 
 #if 0
    fatfs_test();

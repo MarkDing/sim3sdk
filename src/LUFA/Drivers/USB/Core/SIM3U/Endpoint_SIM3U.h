@@ -591,7 +591,11 @@
 			static inline void Endpoint_SetEndpointDirection(const uint32_t DirectionMask) ATTR_ALWAYS_INLINE;
 			static inline void Endpoint_SetEndpointDirection(const uint32_t DirectionMask)
 			{
-				return;
+                if( DirectionMask == ENDPOINT_DIR_IN)
+                    USB_EPn(usb_ep_selected)->EPCONTROL.DIRSEL = 1;
+                else
+                    USB_EPn(usb_ep_selected)->EPCONTROL.DIRSEL = 0;
+                return;
 			}
 
 			/** Reads one byte from the currently selected endpoint's bank, for OUT direction endpoints.
