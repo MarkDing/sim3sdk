@@ -7,6 +7,7 @@
 Status
 ----------------------------------
 * USB CDC class has been tested and works well.
+* Three VCP support added
 * Other classes need to be tested in future.
 
 * SD card SPI driver was done, not implement DMA support yet.
