@@ -30,7 +30,7 @@
 
 #define  __INCLUDE_FROM_USB_DRIVER
 #include "../../Core/USBMode.h"
-
+#include "circular_buffer.h"
 #if defined(USB_CAN_BE_DEVICE)
 
 #define  __INCLUDE_FROM_CDC_DRIVER
@@ -153,43 +153,6 @@ uint8_t CDC_Device_SendString(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo
 	return Endpoint_Write_Stream_LE(String, strlen(String), NULL);
 }
 
-uint8_t CDC_Device_SendData(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo,
-                            const char* const Buffer,
-                            const uint16_t Length)
-{
-	if ((USB_DeviceState != DEVICE_STATE_Configured) || !(CDCInterfaceInfo->State.LineEncoding.BaudRateBPS))
-	  return ENDPOINT_RWSTREAM_DeviceDisconnected;
-
-	Endpoint_SetEndpointDirection(ENDPOINT_DIR_IN);
-	Endpoint_SelectEndpoint(CDCInterfaceInfo->Config.DataINEndpoint.Address);
-	return Endpoint_Write_Stream_LE(Buffer, Length, NULL);
-}
-
-uint8_t CDC_Device_SendByte(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo,
-                            const uint8_t Data)
-{
-
-	if ((USB_DeviceState != DEVICE_STATE_Configured) || !(CDCInterfaceInfo->State.LineEncoding.BaudRateBPS))
-	  return ENDPOINT_RWSTREAM_DeviceDisconnected;
-
-
-	Endpoint_SelectEndpoint(CDCInterfaceInfo->Config.DataINEndpoint.Address);
-
-	if (!(Endpoint_IsReadWriteAllowed()))
-	{
-		Endpoint_ClearIN();
-
-		uint8_t ErrorCode;
-
-		if ((ErrorCode = Endpoint_WaitUntilReady()) != ENDPOINT_READYWAIT_NoError)
-		{
-			return ErrorCode;
-		}
-	}
-
-	Endpoint_Write_8(Data);
-	return ENDPOINT_READYWAIT_NoError;
-}
 
 uint8_t CDC_Device_Flush(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo)
 {
@@ -218,29 +181,22 @@ uint8_t CDC_Device_Flush(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo)
 	return ENDPOINT_READYWAIT_NoError;
 }
 
-uint16_t CDC_Device_BytesReceived(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo)
+uint32_t CDC_Device_BytesReceived(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo)
 {
 	if ((USB_DeviceState != DEVICE_STATE_Configured) || !(CDCInterfaceInfo->State.LineEncoding.BaudRateBPS))
 	  return 0;
 
+    circular_buffer_pools_t * cb = circular_buffer_pointer(CDCInterfaceInfo->Config.DataOUTEndpoint.Address);
 	Endpoint_SelectEndpoint(CDCInterfaceInfo->Config.DataOUTEndpoint.Address);
 
-	if (Endpoint_IsOUTReceived())
-	{
-		if (!(Endpoint_BytesInEndpoint()))
-		{
-			Endpoint_ClearOUT();
-			return 0;
-		}
-		else
-		{
-			return Endpoint_BytesInEndpoint();
-		}
-	}
-	else
-	{
-		return 0;
-	}
+    if(!circular_buffer_is_empty(cb))
+    {
+        return circular_buffer_count(cb);
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 int16_t CDC_Device_ReceiveByte(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo)
@@ -250,24 +206,75 @@ int16_t CDC_Device_ReceiveByte(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInf
 
 	int16_t ReceivedByte = -1;
 
-	Endpoint_SetEndpointDirection(ENDPOINT_DIR_OUT);
+	circular_buffer_pools_t * cb = circular_buffer_pointer(CDCInterfaceInfo->Config.DataOUTEndpoint.Address);
 	Endpoint_SelectEndpoint(CDCInterfaceInfo->Config.DataOUTEndpoint.Address);
 
-	if (Endpoint_IsOUTReceived())
+	if(!circular_buffer_is_empty(cb))
 	{
-		if (Endpoint_BytesInEndpoint())
-		  ReceivedByte = Endpoint_Read_8();
-
-		if (!(Endpoint_BytesInEndpoint()))
-		  Endpoint_ClearOUT();
+	    circular_buffer_pop(cb,&ReceivedByte);
 	}
 
 	return ReceivedByte;
 }
 
+uint8_t CDC_Device_SendByte(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo,
+                            const uint8_t Data)
+{
+
+    if ((USB_DeviceState != DEVICE_STATE_Configured) || !(CDCInterfaceInfo->State.LineEncoding.BaudRateBPS))
+      return ENDPOINT_RWSTREAM_DeviceDisconnected;
+
+    circular_buffer_pools_t * cb = circular_buffer_pointer(CDCInterfaceInfo->Config.DataINEndpoint.Address);
+    Endpoint_SelectEndpoint(CDCInterfaceInfo->Config.DataINEndpoint.Address);
+
+    if(!circular_buffer_is_full(cb))
+    {
+        circular_buffer_push(cb, &Data);
+    }
+    return ENDPOINT_READYWAIT_NoError;
+}
+
+
+uint8_t CDC_Device_SendData(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo,
+                            const char* const Buffer,
+                            const uint16_t Length)
+{
+    if ((USB_DeviceState != DEVICE_STATE_Configured) || !(CDCInterfaceInfo->State.LineEncoding.BaudRateBPS))
+      return ENDPOINT_RWSTREAM_DeviceDisconnected;
+
+    circular_buffer_pools_t * cb = circular_buffer_pointer(CDCInterfaceInfo->Config.DataINEndpoint.Address);
+    Endpoint_SelectEndpoint(CDCInterfaceInfo->Config.DataINEndpoint.Address);
+
+    if(circular_buffer_remain_count(cb) < Length)
+    {
+        return ENDPOINT_RWSTREAM_IncompleteTransfer;
+    }
+    circular_buffer_write(cb, Buffer, Length, 1);
+    return ENDPOINT_RWSTREAM_NoError;
+}
+
+uint8_t CDC_Device_ReceiveData(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo,
+                            const char* const Buffer,
+                            const uint16_t Length)
+{
+    if ((USB_DeviceState != DEVICE_STATE_Configured) || !(CDCInterfaceInfo->State.LineEncoding.BaudRateBPS))
+      return ENDPOINT_RWSTREAM_DeviceDisconnected;
+
+    circular_buffer_pools_t * cb = circular_buffer_pointer(CDCInterfaceInfo->Config.DataOUTEndpoint.Address);
+    Endpoint_SelectEndpoint(CDCInterfaceInfo->Config.DataOUTEndpoint.Address);
+
+    if(circular_buffer_count(cb) < Length)
+    {
+        return ENDPOINT_RWSTREAM_IncompleteTransfer;
+    }
+    circular_buffer_read(cb, Buffer, Length, 1);
+    return ENDPOINT_RWSTREAM_NoError;
+}
+
+
 void CDC_Device_SendControlLineStateChange(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo)
 {
-	if ((USB_DeviceState != DEVICE_STATE_Configured) || !(CDCInterfaceInfo->State.LineEncoding.BaudRateBPS))
+	if ((USB_DeviceState != DEVICE_STATE_Configured))// || !(CDCInterfaceInfo->State.LineEncoding.BaudRateBPS))
 	  return;
 
 	Endpoint_SelectEndpoint(CDCInterfaceInfo->Config.NotificationEndpoint.Address);

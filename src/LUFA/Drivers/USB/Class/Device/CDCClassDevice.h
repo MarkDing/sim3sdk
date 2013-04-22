@@ -200,6 +200,10 @@
 			                            const char* const Buffer,
 			                            const uint16_t Length) ATTR_NON_NULL_PTR_ARG(1) ATTR_NON_NULL_PTR_ARG(2);
 
+			uint8_t CDC_Device_ReceiveData(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo,
+			                            const char* const Buffer,
+			                            const uint16_t Length) ATTR_NON_NULL_PTR_ARG(1) ATTR_NON_NULL_PTR_ARG(2);
+
 			/** Sends a given null terminated string to the attached USB host, if connected. If a host is not connected when
 			 *  the function is called, the string is discarded. Bytes will be queued for transmission to the host until either
 			 *  the endpoint bank becomes full, or the \ref CDC_Device_Flush() function is called to flush the pending data to
@@ -244,7 +248,7 @@
 			 *
 			 *  \return Total number of buffered bytes received from the host.
 			 */
-			uint16_t CDC_Device_BytesReceived(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo) ATTR_NON_NULL_PTR_ARG(1);
+			uint32_t CDC_Device_BytesReceived(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo) ATTR_NON_NULL_PTR_ARG(1);
 
 			/** Reads a byte of data from the host. If no data is waiting to be read of if a USB host is not connected, the function
 			 *  returns a negative value. The \ref CDC_Device_BytesReceived() function may be queried in advance to determine how many

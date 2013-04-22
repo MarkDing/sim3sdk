@@ -29,10 +29,10 @@
 */
 
 #include "../../../../Common/Common.h"
-
+#include "circular_buffer.h"
 #define  __INCLUDE_FROM_USB_DRIVER
 #include "../USBInterrupt.h"
-
+extern uint32_t usb_EPn_read_fifo(SI32_USBEP_A_Type *ep,circular_buffer_pools_t *cb_out);
 void USB_INT_DisableAllInterrupts(void)
 {
 	SI32_USB_A_write_cmintepe(SI32_USB_0, 0x0);
@@ -92,48 +92,60 @@ void USB0_ep0_handler(void)
 //==============================================================================
 void USB0_IRQHandler(void)
 {
-  uint32_t usbCommonInterruptMask = SI32_USB_A_read_cmint(SI32_USB_0);
-  uint32_t usbEpInterruptMask = SI32_USB_A_read_ioint(SI32_USB_0);
+    SI32_USBEP_A_Type * ep;
+    circular_buffer_pools_t *cb_in, *cb_out;
+    uint32_t usb_cmint_mask = SI32_USB_A_read_cmint(SI32_USB_0);
+    uint32_t usb_ioint_mask = SI32_USB_A_read_ioint(SI32_USB_0);
 
-  SI32_USB_A_write_cmint(SI32_USB_0, usbCommonInterruptMask);
-  SI32_USB_A_write_ioint(SI32_USB_0, usbEpInterruptMask);
+    SI32_USB_A_write_cmint(SI32_USB_0, usb_cmint_mask);
+    SI32_USB_A_write_ioint(SI32_USB_0, usb_ioint_mask);
 
-  if (usbEpInterruptMask & SI32_USB_A_IOINT_EP0I_MASK)
-  {
-	  USB0_ep0_handler();
-	  return;
-  }
-  uint32_t ep_selected_backup = usb_ep_selected;
-  if (usbEpInterruptMask & (SI32_USB_A_IOINT_IN1I_MASK | SI32_USB_A_IOINT_OUT1I_MASK))
-  {
-	  Endpoint_SelectEndpoint(1);
-	  USB0_epn_handler();
-  }
-  if (usbEpInterruptMask & (SI32_USB_A_IOINT_IN2I_MASK | SI32_USB_A_IOINT_OUT2I_MASK))
-  {
-	  Endpoint_SelectEndpoint(2);
-	  USB0_epn_handler();
-  }
-  if (usbEpInterruptMask & (SI32_USB_A_IOINT_IN3I_MASK | SI32_USB_A_IOINT_OUT3I_MASK))
-  {
-	  Endpoint_SelectEndpoint(3);
-	  USB0_epn_handler();
-  }
-  if (usbEpInterruptMask & (SI32_USB_A_IOINT_IN4I_MASK | SI32_USB_A_IOINT_OUT4I_MASK))
-  {
-	  Endpoint_SelectEndpoint(4);
-	  USB0_epn_handler();
-  }
-  usb_ep_selected = ep_selected_backup;
-  // Handle Start of Frame Interrupt
-  if (usbCommonInterruptMask & SI32_USB_A_CMINT_SOFI_MASK)
-  {
-//	  EVENT_USB_Device_StartOfFrame();
-  }
+    if (usb_ioint_mask & SI32_USB_A_IOINT_EP0I_MASK)
+    {
+        USB0_ep0_handler();
+        return;
+    }
 
-  // Handle Resume Interrupt
-  if (usbCommonInterruptMask & SI32_USB_A_CMINT_RESI_MASK)
-  {
+    // Handle Start of Frame Interrupt
+    if (usb_cmint_mask & SI32_USB_A_CMINT_SOFI_MASK)//    Use the SOF interrupt to get OUT packets being naked from host
+    {
+        for(int i = 0; i < EPn_NUMBER; i++)
+        {
+            ep = USB_EPn(i + 1);
+            cb_out = circular_buffer_pointer(i + 1);
+            if(circular_buffer_write_ready(cb_out) == 0)
+            {
+                if(circular_buffer_remain_count(cb_out) >= circular_buffer_ep_size(cb_out))
+                {
+                    usb_EPn_read_fifo(ep, cb_out);
+                    circular_buffer_put_write_ready(cb_out,1);
+                }
+            }
+        }
+    //    EVENT_USB_Device_StartOfFrame();
+    }
+
+    for(int i = 0; i < EPn_NUMBER; i++)
+    {
+        ep = USB_EPn(i + 1);
+        cb_in = circular_buffer_pointer((i + 1)|0x80);
+        usb_EPn_write_fifo(ep,cb_in,i);
+        if(usb_ioint_mask & (SI32_USB_A_IOINT_OUT1I_MASK << i))
+        {
+            cb_out = circular_buffer_pointer(i + 1);
+            if(circular_buffer_remain_count(cb_out) >= circular_buffer_ep_size(cb_out))
+            {
+                usb_EPn_read_fifo(ep, cb_out);
+            }
+            else
+            {
+                circular_buffer_put_write_ready(cb_out,0);
+            }
+        }
+    }
+    // Handle Resume Interrupt
+    if (usb_cmint_mask & SI32_USB_A_CMINT_RESI_MASK)
+    {
 		USB_CLK_Unfreeze();
 		SI32_USB_A_disable_resume_interrupt(SI32_USB_0);
 		SI32_USB_A_enable_suspend_interrupt(SI32_USB_0);
@@ -143,34 +155,34 @@ void USB0_IRQHandler(void)
 		else
 		  USB_DeviceState = (USB_Device_IsAddressSet()) ? DEVICE_STATE_Configured : DEVICE_STATE_Powered;
 		EVENT_USB_Device_WakeUp();
-  }
+    }
 
-  // Handle Reset Interrupt
-  if (usbCommonInterruptMask & SI32_USB_A_CMINT_RSTI_MASK)
-  {
-	  SI32_USB_A_enable_ep0(SI32_USB_0);
-	  SI32_USB_A_disable_ep1(SI32_USB_0);
-	  SI32_USB_A_disable_ep2(SI32_USB_0);
-	  SI32_USB_A_disable_ep3(SI32_USB_0);
-	  SI32_USB_A_disable_ep4(SI32_USB_0);
+    // Handle Reset Interrupt
+    if (usb_cmint_mask & SI32_USB_A_CMINT_RSTI_MASK)
+    {
+        SI32_USB_A_enable_ep0(SI32_USB_0);
+        SI32_USB_A_disable_ep1(SI32_USB_0);
+        SI32_USB_A_disable_ep2(SI32_USB_0);
+        SI32_USB_A_disable_ep3(SI32_USB_0);
+        SI32_USB_A_disable_ep4(SI32_USB_0);
 
-	  USB_DeviceState                = DEVICE_STATE_Default;
-	  USB_Device_ConfigurationNumber = 0;
+        USB_DeviceState                = DEVICE_STATE_Default;
+        USB_Device_ConfigurationNumber = 0;
 
-	  Endpoint_ConfigureEndpoint(ENDPOINT_CONTROLEP, EP_TYPE_CONTROL,
-		                           USB_Device_ControlEndpointSize, 1);
-//	  EVENT_USB_Device_Reset();
-  }
+        Endpoint_ConfigureEndpoint(ENDPOINT_CONTROLEP, EP_TYPE_CONTROL,
+                                   USB_Device_ControlEndpointSize, 1);
+        //	  EVENT_USB_Device_Reset();
+    }
 
-  // Handle Suspend interrupt
-  if (usbCommonInterruptMask & SI32_USB_A_CMINT_SUSI_MASK)
-  {
-	  SI32_USB_A_disable_suspend_interrupt(SI32_USB_0);
-	  SI32_USB_A_enable_resume_interrupt(SI32_USB_0);
-	  USB_CLK_Freeze();
-	  USB_DeviceState = DEVICE_STATE_Suspended;
-//	  EVENT_USB_Device_Suspend();
-  }
+    // Handle Suspend interrupt
+    if (usb_cmint_mask & SI32_USB_A_CMINT_SUSI_MASK)
+    {
+        SI32_USB_A_disable_suspend_interrupt(SI32_USB_0);
+        SI32_USB_A_enable_resume_interrupt(SI32_USB_0);
+        USB_CLK_Freeze();
+        USB_DeviceState = DEVICE_STATE_Suspended;
+        //	  EVENT_USB_Device_Suspend();
+    }
 }
 
 

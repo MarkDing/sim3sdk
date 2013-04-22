@@ -289,9 +289,10 @@
 					while (Milliseconds--)
 					  _delay_ms(1);
 				}
-				#elif (ARCH == ARCH_SIMU3)
+				#elif (ARCH == ARCH_SIM3U)
 				{
-					uint32_t  msTicks_last = msTicks + Milliseconds;
+				    extern volatile uint32_t msTicks;
+				    uint32_t  msTicks_last = msTicks + Milliseconds;
 
 					while(msTicks_last > msTicks);
 				}
@@ -349,7 +350,7 @@
 				SREG = GlobalIntState;
 				#elif (ARCH == ARCH_SIM3U)
 				// disable priority 0xF0-0xff interrupt
-				__set_BASEPRI(0xF0);
+				//__set_BASEPRI(0xF0);
 				//__set_PRIMASK(GlobalIntState);
 				#endif
 				GCC_MEMORY_BARRIER();
@@ -371,7 +372,7 @@
 				#elif (ARCH == ARCH_XMEGA)
 				sei();
 				#elif (ARCH == ARCH_SIM3U)
-				//__enable_irq();
+				__enable_irq();
 				#endif
 
 				GCC_MEMORY_BARRIER();
@@ -394,7 +395,7 @@
 				cli();
 				#elif (ARCH == ARCH_SIM3U)
 				// disable priority 0x11-0xff interrupt
-				__set_BASEPRI(0x11);
+				//__set_BASEPRI(0x11);
 				//__disable_irq();
 				#endif
 

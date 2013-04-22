@@ -17,6 +17,7 @@
 //==============================================================================
 
 #include "gClkCtrl.h"
+#include "config.h"
 #include <SI32_CLKCTRL_A_Type.h>
 #include <si32_device.h>
 
@@ -31,7 +32,7 @@ void CLKCTRL_enter_default_mode_from_reset(void)
   SI32_CLKCTRL_A_select_ahb_source_usb_oscillator(SI32_CLKCTRL_0);
 
   // Set system clock to AHB divider frequency
-  SystemCoreClock = 48000000;
+  SystemCoreClock = SYSCLK;
 }
 
 void CLKCTRL_setup_default_mode_clock_gates(void)
@@ -41,5 +42,7 @@ void CLKCTRL_setup_default_mode_clock_gates(void)
                                          SI32_CLKCTRL_A_APBCLKG0_UART0 |
                                          SI32_CLKCTRL_A_APBCLKG0_SPI0 |
                                          SI32_CLKCTRL_A_APBCLKG0_USB0 |
+                                         SI32_CLKCTRL_A_APBCLKG0_TIMER0 |
+                                         SI32_CLKCTRL_A_APBCLKG0_TIMER1 |
                                          SI32_CLKCTRL_A_APBCLKG0_FLASHCTRL0);
 }

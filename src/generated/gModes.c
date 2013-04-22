@@ -48,6 +48,7 @@ void enter_default_mode_from_reset(void)
   // Initialize peripherals
   cpu_update();
   UART0_enter_default_mode_from_reset();
+  TIMER_enter_default_mode_from_reset();
 }
 
 //---eof------------------------------------------------------------------------

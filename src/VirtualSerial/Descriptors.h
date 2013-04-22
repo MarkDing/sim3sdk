@@ -35,12 +35,12 @@
 
 #ifndef _DESCRIPTORS_H_
 #define _DESCRIPTORS_H_
-
+#include "config.h"
 	/* Includes: */
 		#include <LUFA/Drivers/USB/USB.h>
 
 	/* Macros: */
-        #define DUAL_VCP_ENABLE 1
+        #define DUAL_VCP_ENABLE 0
         #define TRI_VCP_ENABLE  0
 
 		/** Endpoint address of the CDC device-to-host notification IN endpoint. */

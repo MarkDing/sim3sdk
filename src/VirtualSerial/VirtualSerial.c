@@ -35,7 +35,10 @@
  */
 
 #include "VirtualSerial.h"
+#include "circular_buffer.h"
 #include "gUART0.h"
+#include <SI32_TIMER_A_Type.h>
+#include "gTimer.h"
 void VCOM_bridge(void);
 void VCOM_echo(void);
 
@@ -139,6 +142,21 @@ void vcp_main(void)
 	}
 }
 
+void VCOM_echo_new(void)
+{
+    uint8_t temp;
+    circular_buffer_pools_t * cb_out = circular_buffer_pointer(0x2);
+    circular_buffer_pools_t * cb_in = circular_buffer_pointer(0x82);
+
+    if((!circular_buffer_is_empty(cb_out)) && (!circular_buffer_is_full(cb_in)))
+    {
+        circular_buffer_pop(cb_out,&temp);
+        circular_buffer_push(cb_in,&temp);
+        //  Set Next Timer Reload to finish transfer after there is room in FIFO
+        start_timer(1);
+    }
+}
+
 static uint8_t out_buff[CDC_TXRX_EPSIZE];
 static uint8_t in_buff[CDC_TXRX_EPSIZE];
 #if (DUAL_VCP_ENABLE || TRI_VCP_ENABLE)
@@ -150,11 +168,34 @@ static uint8_t in3_buff[CDC_TXRX_EPSIZE];
 
 void VCOM_echo(void)
 {
-	if(CDC_Device_BytesReceived(&VirtualSerial_CDC1_Interface))
+    uint32_t count,write_done = 1;
+
+    if(((count = CDC_Device_BytesReceived(&VirtualSerial_CDC1_Interface)) != 0) || (write_done == 0))
+    {
+        if(count != 0)
+        {
+            CDC_Device_ReceiveData(&VirtualSerial_CDC1_Interface,in_buff,count);
+        }
+        if(CDC_Device_SendData(&VirtualSerial_CDC1_Interface, in_buff,count) == 0)
+        {
+            write_done = 1;
+            start_timer(1);
+        }
+        else
+        {
+            write_done = 0;
+        }
+    }
+}
+
+void VCOM_echo_old2(void)
+{
+    uint32_t count;
+	if((count = CDC_Device_BytesReceived(&VirtualSerial_CDC1_Interface)) != 0)
 	{
 		in_buff[0] = CDC_Device_ReceiveByte(&VirtualSerial_CDC1_Interface);
-		CDC_Device_SendData(&VirtualSerial_CDC1_Interface, (char *)in_buff, 1);
-		Endpoint_ClearIN();
+		CDC_Device_SendByte(&VirtualSerial_CDC1_Interface, in_buff[0]);
+        start_timer(1);
 	}
 #if (DUAL_VCP_ENABLE || TRI_VCP_ENABLE)
 	if(CDC_Device_BytesReceived(&VirtualSerial_CDC2_Interface))

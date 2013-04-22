@@ -34,7 +34,7 @@
 #define  __INCLUDE_FROM_USB_DRIVER
 #define  __INCLUDE_FROM_USB_CONTROLLER_C
 #include "../USBController.h"
-
+#include "config.h"
 #if !defined(USE_STATIC_OPTIONS)
 volatile uint8_t USB_Options;
 #endif
@@ -84,8 +84,9 @@ void USB_Init(const uint8_t Options)
 	SI32_USB_A_enable_suspend_interrupt (SI32_USB_0);
 //	SI32_USB_A_enable_resume_interrupt (SI32_USB_0);
 	SI32_USB_A_enable_reset_interrupt (SI32_USB_0);
-//	SI32_USB_A_enable_start_of_frame_interrupt (SI32_USB_0);
+	SI32_USB_A_enable_start_of_frame_interrupt (SI32_USB_0);
 	// Enable USB interrupts
+    NVIC_SetPriority(USB0_IRQn, USB0_InterruptPriority);
 	NVIC_EnableIRQ(USB0_IRQn);
 
 	USB_DeviceState = DEVICE_STATE_Powered;

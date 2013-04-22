@@ -16,7 +16,9 @@
 #include "gCPU.h"
 #include "diskio.h"
 #include "ff.h"
+#include "circular_buffer.h"
 extern void vcp_main(void);
+
 
 
 uint8_t sec_buf[512];
@@ -145,6 +147,7 @@ int main()
    //printf("hello1\n");
    // Enter the default operating mode for this application
    enter_default_mode_from_reset();
+   circular_buffer_init();
    //printf("hello2\n");
 
 #if 0
@@ -153,7 +156,6 @@ int main()
    disk_read(0,sec_buf,0,1);
    while(1);
 #endif
-
    vcp_main();
    while (1)
    {

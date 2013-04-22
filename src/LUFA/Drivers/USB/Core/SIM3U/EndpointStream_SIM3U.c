@@ -30,12 +30,14 @@
 
 #include "../../../../Common/Common.h"
 
-
+#include "circular_buffer.h"
+#include "gTIMER.H"
 #define  __INCLUDE_FROM_USB_DRIVER
 #include "../USBMode.h"
 
-
+#include <SI32_TIMER_A_Type.h>
 #include "EndpointStream_SIM3U.h"
+
 
 #if !defined(CONTROL_ONLY_DEVICE)
 uint8_t Endpoint_Discard_Stream(uint16_t Length,
@@ -115,6 +117,7 @@ uint8_t Endpoint_Null_Stream(uint16_t Length,
 
 	return ENDPOINT_RWSTREAM_NoError;
 }
+
 //------------------------------------------------------------------------------
 uint32_t USB0_EP0_read_fifo(uint8_t * dst,  uint32_t count)
 {
@@ -177,35 +180,59 @@ uint32_t USB0_EP0_write_fifo(uint8_t * src, uint32_t count)
 	}
 	return result;
 }
-//------------------------------------------------------------------------------
-uint32_t USB0_EPn_read_fifo(SI32_USBEP_A_Type *ep,  uint8_t * dst,  uint32_t count)
+
+
+uint32_t usb_EPn_read_fifo(SI32_USBEP_A_Type *ep,circular_buffer_pools_t *cb_out)
 {
-	uint32_t * pTmp32;
-	uint32_t result;
-	count = MIN( count, SI32_USBEP_A_read_data_count(ep) );
-	result=count;
+    uint32_t count = 0;
 
-	while ( (((uint32_t) dst) & 0x3) && count)
-	{
-		*dst++=SI32_USBEP_A_read_fifo_u8(ep);
-		count--;
-	};
-
-	pTmp32=(uint32_t*) dst;
-	while (count>3)
-	{
-		*pTmp32++=SI32_USBEP_A_read_fifo_u32(ep);
-		count-=4;
-	}
-	dst = (uint8_t*) pTmp32;
-	while (count)
-	{
-		*dst++=(uint32_t) SI32_USBEP_A_read_fifo_u8(ep);
-		count--;
-	}
-	return result;
+    if (SI32_USBEP_A_is_outpacket_ready(ep))
+    {
+        count = circular_buffer_write(cb_out,&ep->EPFIFO.U8,SI32_USBEP_A_read_data_count(ep),0);
+        SI32_USBEP_A_clear_outpacket_ready(ep);
+    }
+    return count;
 }
 
+
+uint32_t usb_EPn_write_fifo(SI32_USBEP_A_Type *ep,circular_buffer_pools_t *cb_in,uint8_t idx)
+{
+    uint32_t count = 0;
+    uint16_t ep_size =  circular_buffer_ep_size(cb_in);
+
+    if (SI32_USBEP_A_is_in_fifo_empty(ep))
+    {
+        if ((circular_buffer_count(cb_in) >= ep_size) || (circular_buffer_read_ready(cb_in)))
+        {
+            count = circular_buffer_count(cb_in);
+
+            if (count >= ep_size)
+            {
+                count = ep_size;
+                //  Enable EPn transmit complete interrupt
+                SI32_USB_0->IOINTE.U32 |= (SI32_USB_A_IOINTE_IN1IEN_MASK << idx);
+            }
+            else
+            {
+                circular_buffer_put_read_ready(cb_in,0); // Bulk transfers should finish with a single short packet
+                //  Disable EPn transmit complete interrupt
+                SI32_USB_0->IOINTE.U32 &= ~(SI32_USB_A_IOINTE_IN1IEN_MASK << idx);
+            }
+
+            count = circular_buffer_read(cb_in,&ep->EPFIFO.U8, count,0);
+
+            SI32_USBEP_A_set_in_packet_ready(ep);
+        }
+    }
+    else
+    {
+        if (circular_buffer_read_ready(cb_in))
+        {
+            start_timer(idx);
+        }
+    }
+    return count;
+}
 
 //------------------------------------------------------------------------------
 uint32_t USB0_EPn_write_fifo(SI32_USBEP_A_Type *ep, uint8_t * src, uint32_t count)
