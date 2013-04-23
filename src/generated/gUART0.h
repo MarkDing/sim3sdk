@@ -19,6 +19,7 @@
 #ifndef __GUART0_H__
 #define __GUART0_H__
 #include <SI32_UART_A_Type.h>
+#define UART_MAX_FIFO_COUNT 4
 
 void UART0_IRQHandler(void);
 void UART0_enter_default_mode_from_reset(void);

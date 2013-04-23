@@ -16,6 +16,7 @@
 #define EP3_BUFFER_SIZE CIRCULAR_BUFFER_SIZE
 #define EP4_BUFFER_SIZE CIRCULAR_BUFFER_SIZE
 
+#define MIN(x, y)               (((x) < (y)) ? (x) : (y))
 typedef struct
 {
     uint8_t  *buffer;
@@ -34,16 +35,16 @@ extern circular_buffer_pools_t EPn_cb_out[EPn_NUMBER];
 
 extern void circular_buffer_init();
 extern circular_buffer_pools_t * circular_buffer_pointer(uint8_t ep_address);
-extern int inline circular_buffer_read_ready(circular_buffer_pools_t * cb);
-extern void inline circular_buffer_put_read_ready(circular_buffer_pools_t * cb, uint8_t val);
-extern int inline circular_buffer_write_ready(circular_buffer_pools_t * cb);
-extern void inline circular_buffer_put_write_ready(circular_buffer_pools_t * cb,uint8_t val);
-extern int inline circular_buffer_is_empty(circular_buffer_pools_t * cb);
-extern int inline circular_buffer_is_full(circular_buffer_pools_t * cb);
-extern uint32_t inline circular_buffer_count(circular_buffer_pools_t * cb);
-extern uint32_t inline circular_buffer_remain_count(circular_buffer_pools_t * cb);
-extern uint16_t inline circular_buffer_ep_size(circular_buffer_pools_t * cb);
-extern uint16_t inline circular_buffer_timer_reload(circular_buffer_pools_t * cb);
+extern int circular_buffer_read_ready(circular_buffer_pools_t * cb);
+extern void circular_buffer_put_read_ready(circular_buffer_pools_t * cb, uint8_t val);
+extern int circular_buffer_write_ready(circular_buffer_pools_t * cb);
+extern void circular_buffer_put_write_ready(circular_buffer_pools_t * cb,uint8_t val);
+extern int circular_buffer_is_empty(circular_buffer_pools_t * cb);
+extern int circular_buffer_is_full(circular_buffer_pools_t * cb);
+extern uint32_t circular_buffer_count(circular_buffer_pools_t * cb);
+extern uint32_t circular_buffer_remain_count(circular_buffer_pools_t * cb);
+extern uint16_t circular_buffer_ep_size(circular_buffer_pools_t * cb);
+extern uint16_t circular_buffer_timer_reload(circular_buffer_pools_t * cb);
 extern void circular_buffer_push(circular_buffer_pools_t * cb, uint8_t *elem);
 extern int32_t circular_buffer_pop(circular_buffer_pools_t * cb,uint8_t *elem);
 extern uint32_t circular_buffer_write(circular_buffer_pools_t * cb, uint8_t *elem, uint32_t count, uint8_t increase);

@@ -18,25 +18,102 @@
 
 // Include peripheral access modules used in this file
 #include <si32_device.h>
+#include "circular_buffer.h"
+#include "gTIMER.h"
 #include "gUART0.h"
 #include "gCPU.h"
 
-
-extern void uart_rev_handler(void);
+void UART0_rx_data_req_handler(void);
+void UART0_tx_complete_handler(void);
 //==============================================================================
 // 1st Level Interrupt Handlers
 //==============================================================================
 void UART0_IRQHandler()
 {
-  if (SI32_UART_A_is_rx_data_request_interrupt_pending(SI32_UART_0))
-  {
-//	  uart_rev_handler();
-  }
+    if (SI32_UART_A_is_rx_frame_error_interrupt_pending(SI32_UART_0))
+    {
+       SI32_UART_A_clear_rx_frame_error_interrupt(SI32_UART_0);
+    }
+    if (SI32_UART_A_is_rx_parity_error_interrupt_pending(SI32_UART_0))
+    {
+       SI32_UART_A_clear_rx_parity_error_interrupt(SI32_UART_0);
+    }
+    if (SI32_UART_A_is_rx_overrun_interrupt_pending(SI32_UART_0))
+    {
+       SI32_UART_A_clear_rx_overrun_error_interrupt(SI32_UART_0);
+    }
+    if (SI32_UART_A_is_rx_data_request_interrupt_pending(SI32_UART_0))
+    {
+       SI32_UART_A_clear_rx_data_request_interrupt(SI32_UART_0);
+    }
+    if (SI32_UART_A_is_tx_smartcard_parity_error_interrupt_pending(SI32_UART_0))
+    {
+       SI32_UART_A_clear_tx_smartcard_parity_error_interrupt(SI32_UART_0);
+    }
+    if (SI32_UART_A_is_rx_fifo_error_interrupt_pending(SI32_UART_0))
+    {
+       SI32_UART_A_clear_rx_fifo_error_interrupt(SI32_UART_0);
+    }
+    if (SI32_UART_A_is_tx_fifo_error_interrupt_pending(SI32_UART_0))
+    {
+       SI32_UART_A_clear_tx_fifo_error_interrupt(SI32_UART_0);
+    }
+
+    if (SI32_UART_A_is_tx_data_request_interrupt_pending(SI32_UART_0))
+    {
+        UART0_rx_data_req_handler();
+    }
+    if (SI32_UART_A_is_tx_complete(SI32_UART_0))
+    {
+        UART0_tx_complete_handler();
+    }
 }
+
 
 //==============================================================================
 // Configuration Functions
 //==============================================================================
+/*
+ * UART0 <---> EP2, RX circular buffer in[1]
+ */
+void UART0_rx_data_req_handler(void)
+{
+    uint32_t count, rece_data;
+    circular_buffer_pools_t * cb = circular_buffer_pointer(0x82); // EP2 IN
+
+    stop_timer(1); // timer0H for EP2
+    SI32_UART_A_clear_rx_data_request_interrupt(SI32_UART_0);
+    count = SI32_UART_A_read_rx_fifo_count (SI32_UART_0);
+    while(count--)
+    {
+        rece_data = SI32_UART_A_read_data_u8 (SI32_UART_0);
+        circular_buffer_push(cb,&rece_data);
+    }
+    start_timer(1);
+}
+
+/*
+ * UART0 <---> EP2, TX circular buffer out[1]
+ */
+void UART0_tx_complete_handler(void)
+{
+    uint8_t send_data;
+    uint32_t count;
+    circular_buffer_pools_t * cb = circular_buffer_pointer(0x02); // EP2 out
+
+    SI32_UART_A_clear_tx_complete_interrupt (SI32_UART_0);
+    if(!circular_buffer_is_empty(cb))
+    {
+        count = MIN(circular_buffer_count(cb),UART_MAX_FIFO_COUNT);
+
+        while(count--)
+        {
+            circular_buffer_pop(cb,&send_data);
+            SI32_UART_A_write_data_u8(SI32_UART_0, send_data);
+        }
+    }
+}
+
 uint8_t uart_get_byte()
 {
 	return SI32_UART_A_read_data_u8(SI32_UART_0);
@@ -150,7 +227,6 @@ void UART0_enter_default_mode_from_reset(void)
     SI32_UART_A_enable_tx_stop_bit(SI32_UART_0);
     SI32_UART_A_disable_tx_parity_bit(SI32_UART_0);
     SI32_UART_A_select_tx_stop_bits(SI32_UART_0, SI32_UART_A_STOP_BITS_1_BIT);
-    SI32_UART_A_enable_tx(SI32_UART_0);
 
     // SETUP RX
     SI32_UART_A_select_rx_data_length(SI32_UART_0, 8);
@@ -159,12 +235,20 @@ void UART0_enter_default_mode_from_reset(void)
     SI32_UART_A_disable_rx_parity_bit(SI32_UART_0);
     SI32_UART_A_select_rx_stop_bits(SI32_UART_0, SI32_UART_A_STOP_BITS_1_BIT);
     SI32_UART_A_select_rx_fifo_threshold_1(SI32_UART_0);
-    SI32_UART_A_enable_rx(SI32_UART_0);
 
+    SI32_UART_A_clear_tx_complete_interrupt (SI32_UART_0);
+    SI32_UART_A_clear_rx_data_request_interrupt (SI32_UART_0);
+    SI32_UART_A_select_tx_complete_threshold_no_more_data (SI32_UART_0);
+    SI32_UART_A_enable_tx_complete_interrupt (SI32_UART_0);
+    SI32_UART_A_enable_rx_data_request_interrupt (SI32_UART_0);
+    SI32_UART_A_enable_rx_error_interrupts (SI32_UART_0);
 
-//    SI32_UART_A_enable_rx_data_request_interrupt(SI32_UART_0);
-//    NVIC_ClearPendingIRQ(UART0_IRQn);
-//    NVIC_EnableIRQ(UART0_IRQn);
+    SI32_UART_A_enable_rx (SI32_UART_0);
+    SI32_UART_A_enable_tx (SI32_UART_0);
+
+    NVIC_SetPriority (UART0_IRQn, UART0_InterruptPriority);
+    NVIC_ClearPendingIRQ(UART0_IRQn);
+    NVIC_EnableIRQ (UART0_IRQn);
 
 }
 

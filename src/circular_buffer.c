@@ -7,13 +7,13 @@
 #include <si32_device.h>
 #include "circular_buffer.h"
 
-#define MIN(x, y)               (((x) < (y)) ? (x) : (y))
-
+// in buffers for USB IN endpoint
 uint8_t ep1_in_buffer[EP1_BUFFER_SIZE];
 uint8_t ep2_in_buffer[EP2_BUFFER_SIZE];
 uint8_t ep3_in_buffer[EP3_BUFFER_SIZE];
 uint8_t ep4_in_buffer[EP4_BUFFER_SIZE];
 
+// out buffers for USB OUT endpoint
 uint8_t ep1_out_buffer[EP1_BUFFER_SIZE];
 uint8_t ep2_out_buffer[EP2_BUFFER_SIZE];
 uint8_t ep3_out_buffer[EP3_BUFFER_SIZE];

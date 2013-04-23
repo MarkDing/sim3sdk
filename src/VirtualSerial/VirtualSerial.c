@@ -137,12 +137,13 @@ void vcp_main(void)
 
 	while(1)
 	{
-		VCOM_echo();
-//		VCOM_bridge();
+//		VCOM_echo();
+		VCOM_bridge();
 	}
 }
 
-void VCOM_echo_new(void)
+
+void VCOM_echo(void)
 {
     uint8_t temp;
     circular_buffer_pools_t * cb_out = circular_buffer_pointer(0x2);
@@ -155,79 +156,19 @@ void VCOM_echo_new(void)
         //  Set Next Timer Reload to finish transfer after there is room in FIFO
         start_timer(1);
     }
+
 }
 
-static uint8_t out_buff[CDC_TXRX_EPSIZE];
-static uint8_t in_buff[CDC_TXRX_EPSIZE];
-#if (DUAL_VCP_ENABLE || TRI_VCP_ENABLE)
-static uint8_t in2_buff[CDC_TXRX_EPSIZE];
-#endif
-#if (TRI_VCP_ENABLE)
-static uint8_t in3_buff[CDC_TXRX_EPSIZE];
-#endif
 
-void VCOM_echo(void)
-{
-    uint32_t count,write_done = 1;
-
-    if(((count = CDC_Device_BytesReceived(&VirtualSerial_CDC1_Interface)) != 0) || (write_done == 0))
-    {
-        if(count != 0)
-        {
-            CDC_Device_ReceiveData(&VirtualSerial_CDC1_Interface,in_buff,count);
-        }
-        if(CDC_Device_SendData(&VirtualSerial_CDC1_Interface, in_buff,count) == 0)
-        {
-            write_done = 1;
-            start_timer(1);
-        }
-        else
-        {
-            write_done = 0;
-        }
-    }
-}
-
-void VCOM_echo_old2(void)
-{
-    uint32_t count;
-	if((count = CDC_Device_BytesReceived(&VirtualSerial_CDC1_Interface)) != 0)
-	{
-		in_buff[0] = CDC_Device_ReceiveByte(&VirtualSerial_CDC1_Interface);
-		CDC_Device_SendByte(&VirtualSerial_CDC1_Interface, in_buff[0]);
-        start_timer(1);
-	}
-#if (DUAL_VCP_ENABLE || TRI_VCP_ENABLE)
-	if(CDC_Device_BytesReceived(&VirtualSerial_CDC2_Interface))
-	{
-		in2_buff[0] = CDC_Device_ReceiveByte(&VirtualSerial_CDC2_Interface);
-		CDC_Device_SendData(&VirtualSerial_CDC2_Interface, (char *)in2_buff, 1);
-		Endpoint_ClearIN();
-	}
-#endif
-#if (TRI_VCP_ENABLE)
-    if(CDC_Device_BytesReceived(&VirtualSerial_CDC3_Interface))
-    {
-        in3_buff[0] = CDC_Device_ReceiveByte(&VirtualSerial_CDC3_Interface);
-        CDC_Device_SendData(&VirtualSerial_CDC3_Interface, (char *)in3_buff, 1);
-        Endpoint_ClearIN();
-    }
-#endif
-}
 void VCOM_bridge(void)
 {
-	uint32_t recv_count;
-	recv_count = CDC_Device_BytesReceived(&VirtualSerial_CDC1_Interface);
-	while(recv_count--)
+	uint32_t count;
+    circular_buffer_pools_t * cb;
+
+    cb = circular_buffer_pointer(0x2); // EP2 OUT
+	if(circular_buffer_count(cb))
 	{
-		out_buff[0] = CDC_Device_ReceiveByte(&VirtualSerial_CDC1_Interface);
-		uart_send_byte(out_buff[0]);
-	}
-	recv_count = uart_get_data(in_buff);
-	if(recv_count)
-	{
-		CDC_Device_SendData(&VirtualSerial_CDC1_Interface, (char *)in_buff, recv_count);
-		Endpoint_ClearIN();
+	    (SI32_UART_0->CONTROL_SET = SI32_UART_A_CONTROL_TCPTI_MASK);
 	}
 }
 
