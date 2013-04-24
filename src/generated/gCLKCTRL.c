@@ -44,5 +44,7 @@ void CLKCTRL_setup_default_mode_clock_gates(void)
                                          SI32_CLKCTRL_A_APBCLKG0_USB0 |
                                          SI32_CLKCTRL_A_APBCLKG0_TIMER0 |
                                          SI32_CLKCTRL_A_APBCLKG0_TIMER1 |
+                                         SI32_CLKCTRL_A_APBCLKG1_MISC1 |
                                          SI32_CLKCTRL_A_APBCLKG0_FLASHCTRL0);
+  SI32_CLKCTRL_A_enable_ahb_to_dma_controller(SI32_CLKCTRL_0);
 }

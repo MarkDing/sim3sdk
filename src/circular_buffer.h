@@ -33,6 +33,7 @@ typedef struct
 extern circular_buffer_pools_t EPn_cb_in[EPn_NUMBER];
 extern circular_buffer_pools_t EPn_cb_out[EPn_NUMBER];
 
+
 extern void circular_buffer_init();
 extern circular_buffer_pools_t * circular_buffer_pointer(uint8_t ep_address);
 extern int circular_buffer_read_ready(circular_buffer_pools_t * cb);

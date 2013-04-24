@@ -75,7 +75,7 @@ void fatfs_test()
 	if (rc) die(rc);
 
 	printf("\nWrite a text data. (Hello world!)\n");
-	rc = f_write(&Fil, "Hello world!\r\n", 14, &bw);
+	rc = f_write(&Fil, "Hello world! I am FATFs!\r\n", 26, &bw);
 	if (rc) die(rc);
 	printf("%u bytes written.\n", bw);
 
@@ -133,6 +133,7 @@ void led_off(uint32_t value)
 	SI32_PBSTD_A_write_pins_high(SI32_PBSTD_2, value);
 }
 #endif
+
 //==============================================================================
 // myApplication.
 //==============================================================================
@@ -150,7 +151,7 @@ int main()
    circular_buffer_init();
    //printf("hello2\n");
 
-#if 0
+#if 1
    fatfs_test();
    disk_initialize(0);
    disk_read(0,sec_buf,0,1);

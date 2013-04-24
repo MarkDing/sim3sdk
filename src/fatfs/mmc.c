@@ -9,16 +9,28 @@
 #include <SI32_SPI_A_Type.h>
 #include <SI32_CLKCTRL_A_Type.h>
 #include <SI32_PBSTD_A_Type.h>
+#include <SI32_DMACTRL_A_Type.h>
+#include <SI32_DMADESC_A_Type.h>
+#include <SI32_DMAXBAR_A_Type.h>
+#include "circular_buffer.h"
 #include "gCPU.h"
 #include "diskio.h"
 
+#define SPI_DMA_ENABLE
+
+#ifdef SPI_DMA_ENABLE
+static uint32_t rx_ch, tx_ch;
+extern SI32_DMADESC_A_Type dma_desc[SI32_DMACTRL_NUM_CHANNELS + SI32_DMADESC_ALT_STRIDE];
+#endif
+#define SPI_SLOW_SPEED 100000   // 100K HZ
+#define SPI_HIGH_SPEED 800000   // 8M Hz
 /* Port controls  (Platform dependent) */
-#define CS_LOW()	SI32_SPI_A_clear_nss (SI32_SPI_0)			/* CS=low */
-#define	CS_HIGH()	 SI32_SPI_A_set_nss (SI32_SPI_0)			/* CS=high */
+#define CS_LOW()	SI32_SPI_A_clear_nss (SI32_SPI_0)		  /* CS=low */
+#define	CS_HIGH()	SI32_SPI_A_set_nss (SI32_SPI_0)			  /* CS=high */
 #define SOCKINS		true //(!(PINB & 0x10))	/* Card detected.   yes:true, no:false, default:true */
 #define SOCKWP		fales //(PINB & 0x20)		/* Write protected. yes:true, no:false, default:false */
-#define	FCLK_SLOW()	SI32_SPI_A_write_clkrate(SI32_SPI_0, 0x00000080) /* Set slow clock (F_CPU / 128) */
-#define	FCLK_FAST()	SI32_SPI_A_write_clkrate(SI32_SPI_0, 0x00000020) /* Set fast clock (F_CPU / 32) */
+#define	FCLK_SLOW()	SI32_SPI_A_write_clkrate(SI32_SPI_0, APBCLK / (2 * SPI_SLOW_SPEED) -1) /* Set slow clock 100k Hz*/
+#define	FCLK_FAST()	SI32_SPI_A_write_clkrate(SI32_SPI_0, APBCLK / (2 * SPI_HIGH_SPEED) -1) /* Set fast clock 8M Hz */
 
 
 /*--------------------------------------------------------------------------
@@ -122,21 +134,54 @@ static BYTE xchg_spi(BYTE dat)
 /* Size of data block */
 static void xmit_spi_multi(const BYTE *p,UINT cnt)
 {
+#ifdef SPI_DMA_ENABLE
+    uint32_t temp;
+    SI32_DMADESC_A_configure(&dma_desc[rx_ch],
+         SI32_SPI_0_RX_ENDPOINT, &temp, cnt / 4, SI32_DMADESC_A_CONFIG_WORD_PIPE);
+    SI32_DMADESC_A_configure(&dma_desc[tx_ch],
+        p, SI32_SPI_0_TX_ENDPOINT, cnt / 4, SI32_DMADESC_A_CONFIG_WORD_TX);
+
+    SI32_DMACTRL_A_enable_channel(SI32_DMACTRL_0, rx_ch);
+    SI32_DMACTRL_A_enable_channel(SI32_DMACTRL_0, tx_ch);
+
+    // 6. Run the complete peripheral DMA cycle
+    SI32_SPI_A_enable_dma_requests(SI32_SPI_0);
+
+    while(SI32_DMACTRL_A_read_chen(SI32_DMACTRL_0));
+#else
+
 	do {
 		SI32_SPI_A_write_tx_fifo_u8(SI32_SPI_0, *p++);
 		while(0 == SI32_SPI_A_is_shift_register_empty_interrupt_pending(SI32_SPI_0));
 		SI32_SPI_A_write_tx_fifo_u8(SI32_SPI_0, *p++);
 		while(0 == SI32_SPI_A_is_shift_register_empty_interrupt_pending(SI32_SPI_0));
 	} while (cnt -= 2);
+#endif
     SI32_SPI_A_flush_rx_fifo(SI32_SPI_0);
     SI32_SPI_A_flush_tx_fifo(SI32_SPI_0);
 }
+
 
 /* Receive a data block */
 /* Data buffer */
 /* Size of data block */
 static void rcvr_spi_multi(BYTE *p,UINT cnt)
 {
+#ifdef SPI_DMA_ENABLE
+    uint32_t temp;
+    SI32_DMADESC_A_configure(&dma_desc[rx_ch],
+         SI32_SPI_0_RX_ENDPOINT, p, cnt / 4, SI32_DMADESC_A_CONFIG_WORD_RX);
+    SI32_DMADESC_A_configure(&dma_desc[tx_ch],
+        &temp, SI32_SPI_0_TX_ENDPOINT, cnt / 4, SI32_DMADESC_A_CONFIG_WORD_PIPE);
+
+    SI32_DMACTRL_A_enable_channel(SI32_DMACTRL_0, rx_ch);
+    SI32_DMACTRL_A_enable_channel(SI32_DMACTRL_0, tx_ch);
+
+    // 6. Run the complete peripheral DMA cycle
+    SI32_SPI_A_enable_dma_requests(SI32_SPI_0);
+
+    while(SI32_DMACTRL_A_read_chen(SI32_DMACTRL_0));
+#else
 	do {
 		SI32_SPI_A_write_tx_fifo_u8(SI32_SPI_0, 0xFF);
 		while(0 == SI32_SPI_A_is_shift_register_empty_interrupt_pending(SI32_SPI_0));
@@ -145,8 +190,10 @@ static void rcvr_spi_multi(BYTE *p,UINT cnt)
 		while(0 == SI32_SPI_A_is_shift_register_empty_interrupt_pending(SI32_SPI_0));
 		*p++ = SI32_SPI_A_read_rx_fifo_u8(SI32_SPI_0);
 	} while (cnt -= 2);
+#endif
     SI32_SPI_A_flush_rx_fifo(SI32_SPI_0);
     SI32_SPI_A_flush_tx_fifo(SI32_SPI_0);
+
 }
 
 
@@ -356,6 +403,10 @@ DSTATUS disk_initialize(BYTE drv)
 	if (ty) {			/* Initialization succeded */
 		Stat &= ~STA_NOINIT;		/* Clear STA_NOINIT */
 		FCLK_FAST();
+#ifdef SPI_DMA_ENABLE
+	    rx_ch = SI32_DMAXBAR_A_select_channel_peripheral(SI32_DMAXBAR_0, SI32_DMAXBAR_CHAN13_SPI0_RX);
+	    tx_ch = SI32_DMAXBAR_A_select_channel_peripheral(SI32_DMAXBAR_0, SI32_DMAXBAR_CHAN14_SPI0_TX);
+#endif
 	} else {			/* Initialization failed */
 		power_off();
 	}

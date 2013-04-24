@@ -38,8 +38,8 @@ void enter_default_mode_from_reset(void)
 
   // Setup ports
   pb_enter_default_mode_from_reset();
-  gSPI0_enter_master_mode_config();
-
+  //gSPI0_enter_master_mode_config();
+  gSPI0_enter_dma_master_mode_config();
   // Initialize clock control
   SystemCoreClock = 20000000;
   cpu_update();

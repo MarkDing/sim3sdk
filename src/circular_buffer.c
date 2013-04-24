@@ -5,19 +5,34 @@
  *      Author: mading
  */
 #include <si32_device.h>
+#include <SI32_DMACTRL_A_Type.h>
+#include <SI32_DMADESC_A_Type.h>
+#include <SI32_DMAXBAR_A_Type.h>
 #include "circular_buffer.h"
+// DMA Channel Descriptors (primary and alternate)
+// - Alignment and order are required by the DMACTRL module.
+SI32_DMADESC_A_Type dma_desc[SI32_DMACTRL_NUM_CHANNELS + SI32_DMADESC_ALT_STRIDE]  __attribute__ ((aligned SI32_DMADESC_PRI_ALIGN));
+
+
+void DMA_initialize(void)
+{
+    // Setup and enable the DMA controller and DMAXBAR
+    SI32_DMACTRL_A_write_baseptr(SI32_DMACTRL_0, (uint32_t)dma_desc);
+    SI32_DMACTRL_A_enable_module(SI32_DMACTRL_0);
+}
+
 
 // in buffers for USB IN endpoint
-uint8_t ep1_in_buffer[EP1_BUFFER_SIZE];
-uint8_t ep2_in_buffer[EP2_BUFFER_SIZE];
-uint8_t ep3_in_buffer[EP3_BUFFER_SIZE];
-uint8_t ep4_in_buffer[EP4_BUFFER_SIZE];
+uint8_t ep1_in_buffer[EP1_BUFFER_SIZE] __attribute__ ((aligned (4)));
+uint8_t ep2_in_buffer[EP2_BUFFER_SIZE] __attribute__ ((aligned (4)));
+uint8_t ep3_in_buffer[EP3_BUFFER_SIZE] __attribute__ ((aligned (4)));
+uint8_t ep4_in_buffer[EP4_BUFFER_SIZE] __attribute__ ((aligned (4)));
 
 // out buffers for USB OUT endpoint
-uint8_t ep1_out_buffer[EP1_BUFFER_SIZE];
-uint8_t ep2_out_buffer[EP2_BUFFER_SIZE];
-uint8_t ep3_out_buffer[EP3_BUFFER_SIZE];
-uint8_t ep4_out_buffer[EP4_BUFFER_SIZE];
+uint8_t ep1_out_buffer[EP1_BUFFER_SIZE] __attribute__ ((aligned (4)));
+uint8_t ep2_out_buffer[EP2_BUFFER_SIZE] __attribute__ ((aligned (4)));
+uint8_t ep3_out_buffer[EP3_BUFFER_SIZE] __attribute__ ((aligned (4)));
+uint8_t ep4_out_buffer[EP4_BUFFER_SIZE] __attribute__ ((aligned (4)));
 
 circular_buffer_pools_t EPn_cb_in[EPn_NUMBER];
 circular_buffer_pools_t EPn_cb_out[EPn_NUMBER];
@@ -44,6 +59,7 @@ void circular_buffer_init()
     circular_buffer_initialize(&EPn_cb_out[1],ep2_out_buffer,EP2_BUFFER_SIZE,EP2_PACKET_SIZE);
     circular_buffer_initialize(&EPn_cb_out[2],ep3_out_buffer,EP3_BUFFER_SIZE,EP3_PACKET_SIZE);
     circular_buffer_initialize(&EPn_cb_out[3],ep4_out_buffer,EP4_BUFFER_SIZE,EP4_PACKET_SIZE);
+    DMA_initialize();
 }
 
 circular_buffer_pools_t * circular_buffer_pointer(uint8_t ep_address)
@@ -176,7 +192,6 @@ uint32_t circular_buffer_write(circular_buffer_pools_t * cb, uint8_t *elem, uint
  */
 uint32_t circular_buffer_read(circular_buffer_pools_t * cb,uint8_t *elem,uint32_t count,uint8_t increase)
 {
-    uint16_t ep_size =  circular_buffer_ep_size(cb);
     uint32_t cnt = MIN(count, circular_buffer_count(cb));
     uint32_t temp = cnt;
     uint8_t *ptr = &cb->buffer[cb->tail];
