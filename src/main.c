@@ -17,7 +17,7 @@
 #include "diskio.h"
 #include "ff.h"
 #include "circular_buffer.h"
-extern void vcp_main(void);
+extern void app_main(void);
 
 
 
@@ -151,13 +151,14 @@ int main()
    circular_buffer_init();
    //printf("hello2\n");
 
-#if 1
+#if 0
    fatfs_test();
    disk_initialize(0);
    disk_read(0,sec_buf,0,1);
    while(1);
 #endif
-   vcp_main();
+   disk_initialize(0);
+   app_main();
    while (1)
    {
      // if msTicks has changed

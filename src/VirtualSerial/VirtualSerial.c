@@ -131,14 +131,14 @@ USB_ClassInfo_CDC_Device_t VirtualSerial_CDC3_Interface =
 /** Main program entry point. This routine contains the overall program flow, including initial
  *  setup of all components and the main program loop.
  */
-void vcp_main(void)
+void app_main(void)
 {
     USB_Init(USB_DEVICE_OPT_FULLSPEED);
 
 	while(1)
 	{
-//		VCOM_echo();
-		VCOM_bridge();
+		VCOM_echo();
+///		VCOM_bridge();
 	}
 }
 
@@ -146,7 +146,7 @@ void vcp_main(void)
 void VCOM_echo(void)
 {
     uint8_t temp;
-    circular_buffer_pools_t * cb_out = circular_buffer_pointer(0x2);
+    circular_buffer_pools_t * cb_out = circular_buffer_pointer(0x3);
     circular_buffer_pools_t * cb_in = circular_buffer_pointer(0x82);
 
     if((!circular_buffer_is_empty(cb_out)) && (!circular_buffer_is_full(cb_in)))

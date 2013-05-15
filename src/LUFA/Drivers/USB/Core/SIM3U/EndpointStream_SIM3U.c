@@ -228,7 +228,7 @@ uint32_t usb_EPn_write_fifo(SI32_USBEP_A_Type *ep,circular_buffer_pools_t *cb_in
     {
         if (circular_buffer_read_ready(cb_in))
         {
-            start_timer(idx);
+//            start_timer(idx);
         }
     }
     return count;
@@ -275,7 +275,6 @@ uint8_t Endpoint_Write_Stream_LE(const void* const Buffer,
 	uint32_t count;
 	uint8_t ErrorCode;
 	uint8_t * buf = (uint8_t *)Buffer;
-
 	if(usb_ep_selected == ENDPOINT_CONTROLEP)
 	{
 		do
@@ -326,16 +325,55 @@ uint8_t Endpoint_Write_Stream_LE(const void* const Buffer,
 	return ENDPOINT_RWSTREAM_NoError;
 
 }
-
+uint8_t tt[16];
 uint8_t Endpoint_Read_Stream_LE(void* const Buffer,
 		uint16_t Length,
 		uint16_t* const BytesProcessed)
 {
-	uint16_t i;  // TODO fine tune this read stream things
-	for(i=0;i<Length;i++)
+	uint16_t i;
+	static uint8_t tmp = 0;
+	uint8_t * buf = (uint8_t *)Buffer;
+	uint32_t count;
+	for(i = 0;i < 0x200;i++)
 	{
-		((uint8_t*)Buffer)[i] = Endpoint_Read_8();
+		buf[i] = 0xff;
 	}
+	SI32_USBEP_A_Type *ep = USB_EPn(usb_ep_selected);
+    //  Disable EPn transmit complete interrupt
+//    SI32_USB_0->IOINTE.U32 &= ~(SI32_USB_A_IOINTE_OUT4IEN_MASK);
+	do
+	{
+		if(SI32_USBEP_A_is_outpacket_ready(ep))
+		{
+	//		if ((ErrorCode = Endpoint_WaitUntilReady()) != ENDPOINT_READYWAIT_NoError)
+	//			return ErrorCode;
+//			count = ((SI32_USBEP_A_read_data_count(ep)> 64)?64:SI32_USBEP_A_read_data_count(ep));
+			count= MIN( Length, (SI32_USBEP_A_get_out_max_packet_size(ep)<<3));
+			if(count == 64)
+			{
+				tt[tmp++] = count;
+			}
+			if(Length > count)
+			{
+				for(i = 0;i < count;i++)
+				{
+					*buf++ = SI32_USBEP_A_read_fifo_u8(ep);
+				}
+				buf += count;
+			}
+			else
+			{
+				count = Length;
+				for(i = 0;i < count;i++)
+				{
+					*buf++ = SI32_USBEP_A_read_fifo_u8(ep);
+				}
+			}
+			SI32_USBEP_A_clear_outpacket_ready(ep);
+			Length -= count;
+		}
+	}while(Length);
+//	SI32_USB_0->IOINTE.U32 |= (SI32_USB_A_IOINTE_OUT4IEN_MASK);
 	return ENDPOINT_RWSTREAM_NoError;
 }
 

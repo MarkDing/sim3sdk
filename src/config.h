@@ -36,14 +36,23 @@
 #define TIMER1L_InterruptPriority   2
 #define TIMER1H_InterruptPriority   2
 
+#define USB_MSC 1
+#define USB_CDC 0
+//#define ENDPOINT_SPLIT
 
 // Define Endpoint Packet Sizes
 #define  EP0_PACKET_SIZE         0x40
+#if USB_CDC
 #define  EP1_PACKET_SIZE         0x0010
 #define  EP2_PACKET_SIZE         0x0040
 #define  EP3_PACKET_SIZE         0x0040
 #define  EP4_PACKET_SIZE         0x0040
-
+#elif USB_MSC
+#define  EP1_PACKET_SIZE         0x0040
+#define  EP2_PACKET_SIZE         0x0040
+#define  EP3_PACKET_SIZE         0x0040
+#define  EP4_PACKET_SIZE         0x0040
+#endif
 
 #define  EPn_NUMBER   4
 

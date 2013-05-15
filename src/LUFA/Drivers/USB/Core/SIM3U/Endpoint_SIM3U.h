@@ -563,11 +563,11 @@
 				{
 					if(Endpoint_GetEndpointDirection()== ENDPOINT_DIR_IN)
 					{
-						status = USB_EPn(usb_ep_selected)->EPCONTROL.ISDSTL;
+						status = USB_EPn(usb_ep_selected)->EPCONTROL.ISTSTLI;
 					}
 					else
 					{
-						status = USB_EPn(usb_ep_selected)->EPCONTROL.OSDSTL;
+						status = USB_EPn(usb_ep_selected)->EPCONTROL.OSTSTLI;
 					}
 				}
 				return status;
@@ -788,6 +788,10 @@
 			static inline void Endpoint_Write_32_BE(const uint32_t Data) ATTR_ALWAYS_INLINE;
 			static inline void Endpoint_Write_32_BE(const uint32_t Data)
 			{
+                Endpoint_Write_8(Data >> 24);
+                Endpoint_Write_8(Data >> 16);
+                Endpoint_Write_8(Data >> 8);
+                Endpoint_Write_8(Data & 0xFF);
 			}
 
 			/** Discards four bytes from the currently selected endpoint's bank, for OUT direction endpoints.

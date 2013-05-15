@@ -50,7 +50,7 @@
 		#define CDC1_TX_EPADDR                  (ENDPOINT_DIR_IN  | 2)
 
 		/** Endpoint address of the CDC1 host-to-device data OUT endpoint. */
-		#define CDC1_RX_EPADDR                  (ENDPOINT_DIR_OUT | 2)
+		#define CDC1_RX_EPADDR                  (ENDPOINT_DIR_OUT | 3)
 
 #if (DUAL_VCP_ENABLE || TRI_VCP_ENABLE)
         /** Endpoint address of the CDC2 device-to-host data IN endpoint. */

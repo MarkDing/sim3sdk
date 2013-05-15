@@ -243,7 +243,7 @@ static void USB_Device_ClearSetFeature(void)
 		case REQREC_ENDPOINT:
 			if ((uint8_t)USB_ControlRequest.wValue == FEATURE_SEL_EndpointHalt)
 			{
-				uint8_t EndpointIndex = ((uint8_t)USB_ControlRequest.wIndex & ENDPOINT_EPNUM_MASK);
+			    uint8_t EndpointIndex = ((uint8_t)USB_ControlRequest.wIndex );
 
 				if (EndpointIndex == ENDPOINT_CONTROLEP)
 				  return;
@@ -259,7 +259,7 @@ static void USB_Device_ClearSetFeature(void)
 					else
 					{
 						Endpoint_ClearStall();
-						Endpoint_ResetEndpoint(EndpointIndex);
+//						Endpoint_ResetEndpoint(EndpointIndex);
 						Endpoint_ResetDataToggle();
 					}
 				}

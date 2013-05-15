@@ -23,7 +23,7 @@ static uint32_t rx_ch, tx_ch;
 extern SI32_DMADESC_A_Type dma_desc[SI32_DMACTRL_NUM_CHANNELS + SI32_DMADESC_ALT_STRIDE];
 #endif
 #define SPI_SLOW_SPEED 100000   // 100K HZ
-#define SPI_HIGH_SPEED 800000   // 8M Hz
+#define SPI_HIGH_SPEED 8000000   // 8M Hz
 /* Port controls  (Platform dependent) */
 #define CS_LOW()	SI32_SPI_A_clear_nss (SI32_SPI_0)		  /* CS=low */
 #define	CS_HIGH()	SI32_SPI_A_set_nss (SI32_SPI_0)			  /* CS=high */
@@ -32,6 +32,7 @@ extern SI32_DMADESC_A_Type dma_desc[SI32_DMACTRL_NUM_CHANNELS + SI32_DMADESC_ALT
 #define	FCLK_SLOW()	SI32_SPI_A_write_clkrate(SI32_SPI_0, APBCLK / (2 * SPI_SLOW_SPEED) -1) /* Set slow clock 100k Hz*/
 #define	FCLK_FAST()	SI32_SPI_A_write_clkrate(SI32_SPI_0, APBCLK / (2 * SPI_HIGH_SPEED) -1) /* Set fast clock 8M Hz */
 
+UINT sector_count, sector_size;
 
 /*--------------------------------------------------------------------------
 
@@ -258,7 +259,7 @@ static int rcvr_datablock(BYTE *buff,UINT btr)
 	BYTE token;
 	uint32_t time_out;
 
-	time_out = msTicks + 20;
+	time_out = msTicks + 200;
 	do {							/* Wait for data packet in timeout of 200ms */
 		token = xchg_spi(0xFF);
 	} while ((token == 0xFF) && (time_out > msTicks));
@@ -407,6 +408,8 @@ DSTATUS disk_initialize(BYTE drv)
 	    rx_ch = SI32_DMAXBAR_A_select_channel_peripheral(SI32_DMAXBAR_0, SI32_DMAXBAR_CHAN13_SPI0_RX);
 	    tx_ch = SI32_DMAXBAR_A_select_channel_peripheral(SI32_DMAXBAR_0, SI32_DMAXBAR_CHAN14_SPI0_TX);
 #endif
+	    disk_ioctl(drv,GET_SECTOR_COUNT, &sector_count);
+        disk_ioctl(drv,GET_SECTOR_SIZE, &sector_size);
 	} else {			/* Initialization failed */
 		power_off();
 	}

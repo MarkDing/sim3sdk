@@ -42,6 +42,7 @@ uint8_t USB_Device_ControlEndpointSize = ENDPOINT_CONTROLEP_DEFAULT_SIZE;
 #endif
 
 volatile uint32_t usb_ep_selected = ENDPOINT_CONTROLEP;
+volatile uint32_t usb_ep_address = ENDPOINT_CONTROLEP;
 
 bool Endpoint_ConfigureEndpoint(const uint8_t Address,
                                              const uint8_t Type,
@@ -54,15 +55,23 @@ bool Endpoint_ConfigureEndpoint(const uint8_t Address,
 
 	if(Number != ENDPOINT_CONTROLEP)
 	{
-		ep_config = 0x450424;  // bit 2,5,10,16,18,22 must be written
-		                       //IURF,ISTSTLI,SPLITEN, OPRDYI,OORF,OSTSTLI
+	    ep_config = (SI32_USBEP_A_EPCONTROL_OSTSTLI_NOT_SET_U32
+                | SI32_USBEP_A_EPCONTROL_OORF_SET_U32
+                | SI32_USBEP_A_EPCONTROL_OPRDYI_SET_U32
+#ifdef ENDPOINT_SPLIT
+                | SI32_USBEP_A_EPCONTROL_SPLITEN_ENABLED_U32
+#endif
+                | SI32_USBEP_A_EPCONTROL_ISTSTLI_SET_U32
+                | SI32_USBEP_A_EPCONTROL_IURF_SET_U32);
+
+		// bit 2,5,10,16,18,22 must be written IURF,ISTSTLI,SPLITEN, OPRDYI,OORF,OSTSTLI
 		if(Type == EP_TYPE_ISOCHRONOUS)
 		{   // ISO transfer need set "1"
 			ep_config |= (SI32_USBEP_A_EPCONTROL_IISOEN_ISO_U32);
 		}
 		if(dir_sel)
 		{   // IN endpoint
-            ep_config |= (SI32_USBEP_A_EPCONTROL_ICLRDT_RESET_U32);
+            ep_config |= (SI32_USBEP_A_EPCONTROL_DIRSEL_IN_U32 | SI32_USBEP_A_EPCONTROL_ICLRDT_RESET_U32);
 			SI32_USBEP_A_set_in_max_packet_size(USB_EPn(Number),Size>>3);
 		}
 		else

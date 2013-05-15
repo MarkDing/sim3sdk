@@ -63,8 +63,13 @@ void USB0_epn_handler(void)
 	if((control_reg & SI32_USBEP_A_EPCONTROL_OSTSTLI_MASK) ||
 		(control_reg & SI32_USBEP_A_EPCONTROL_ISTSTLI_MASK))
 	{
-		ep->EPCONTROL.U32 |= (SI32_USBEP_A_EPCONTROL_OSTSTLI_MASK | SI32_USBEP_A_EPCONTROL_OORF_SET_U32
-				|SI32_USBEP_A_EPCONTROL_ISTSTLI_SET_U32|SI32_USBEP_A_EPCONTROL_IURF_SET_U32|SI32_USBEP_A_EPCONTROL_SPLITEN_ENABLED_VALUE);
+		ep->EPCONTROL.U32 |= (SI32_USBEP_A_EPCONTROL_OSTSTLI_NOT_SET_U32
+		        | SI32_USBEP_A_EPCONTROL_OORF_SET_U32
+#ifdef ENDPOINT_SPLIT
+		        | SI32_USBEP_A_EPCONTROL_SPLITEN_ENABLED_U32
+#endif
+				| SI32_USBEP_A_EPCONTROL_ISTSTLI_SET_U32
+				| SI32_USBEP_A_EPCONTROL_IURF_SET_U32);
 	}
 }
 
@@ -72,6 +77,7 @@ void USB0_ep0_handler(void)
 {
    uint32_t ControlReg = SI32_USB_A_read_ep0control(SI32_USB_0);
 
+   uint32_t ep_num_backup = usb_ep_selected;
    Endpoint_SelectEndpoint(ENDPOINT_CONTROLEP);
    if(ControlReg & SI32_USB_A_EP0CONTROL_STSTLI_MASK)
    {
@@ -85,8 +91,10 @@ void USB0_ep0_handler(void)
    {
 	   USB_Device_ProcessControlRequest();
    }
+   Endpoint_SelectEndpoint(ep_num_backup);
 }
 
+extern void EVENT_USB_common_request(void);
 //==============================================================================
 //1st LEVEL  INTERRUPT HANDLERS
 //==============================================================================
@@ -106,6 +114,8 @@ void USB0_IRQHandler(void)
         return;
     }
 
+    EVENT_USB_common_request();
+#if 0
     // Handle Start of Frame Interrupt
     if (usb_cmint_mask & SI32_USB_A_CMINT_SOFI_MASK)//    Use the SOF interrupt to get OUT packets being naked from host
     {
@@ -136,6 +146,7 @@ void USB0_IRQHandler(void)
             if(circular_buffer_remain_count(cb_out) >= circular_buffer_ep_size(cb_out))
             {
                 usb_EPn_read_fifo(ep, cb_out);
+                circular_buffer_put_write_ready(cb_out,1);
             }
             else
             {
@@ -143,6 +154,7 @@ void USB0_IRQHandler(void)
             }
         }
     }
+#endif
     // Handle Resume Interrupt
     if (usb_cmint_mask & SI32_USB_A_CMINT_RESI_MASK)
     {
