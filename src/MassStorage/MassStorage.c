@@ -37,6 +37,7 @@
 #define  INCLUDE_FROM_MASSSTORAGE_C
 #include <circular_buffer.h>
 #include "MassStorage.h"
+#include <diskio.h>
 
 /** Structure to hold the latest Command Block Wrapper issued by the host, containing a SCSI command to execute. */
 MS_CommandBlockWrapper_t  CommandBlock;
@@ -46,6 +47,7 @@ MS_CommandStatusWrapper_t CommandStatus = { .Signature = MS_CSW_SIGNATURE };
 
 /** Flag to asynchronously abort any in-progress data transfers upon the reception of a mass storage reset command. */
 volatile bool IsMassStoreReset = false;
+uint32_t msc_state;
 
 
 /** Main program entry point. This routine configures the hardware required by the application, then
@@ -130,9 +132,7 @@ void EVENT_USB_Device_ControlRequest(void)
 			break;
 	}
 }
-uint32_t msc_state;
-extern uint32_t BlockAddress;
-extern uint8_t sec_buf[];
+
 void EVENT_USB_common_request(void)
 {
 	switch(msc_state)
@@ -159,40 +159,49 @@ void EVENT_USB_common_request(void)
 				}
 				if(msc_state == MSC_READY)
 				{
-					msc_state = MSC_CSW_SEND;
-				}
-				if(msc_state == 0x55)
-				{
 					ReturnCommandStatus();
-					msc_state = MSC_READY;
 				}
 			}
 			break;
 		case MSC_DATA_IN:
-			break;
-		case MSC_DATA_OUT:
-            Endpoint_SelectEndpoint(MASS_STORAGE_OUT_EPADDR);
-            Endpoint_Read_Stream_LE(&sec_buf[offset_within_block],64,NULL);
-            offset_within_block += 64;
-            if(offset_within_block == 512)
+#if 0
+            Endpoint_SelectEndpoint(MASS_STORAGE_IN_EPADDR);
+			circular_buffer_pools_t *cb_in = circular_buffer_pointer(MASS_STORAGE_IN_EPADDR);
+	        Endpoint_Write_Stream_LE(cb_in->buffer, MASS_STORAGE_IO_EPSIZE, NULL);
+	        Endpoint_ClearIN();
+	        rw_cmd.offset_within_block += MASS_STORAGE_IO_EPSIZE;
+            if(rw_cmd.offset_within_block == sector_size)
             {
-            	total_blocks--;
-            	offset_within_block = 0;
-                if((disk_write(0,sec_buf,BlockAddress++,1)))
-                {
-                    break;
-                }
+            	rw_cmd.block_count--;
+            	rw_cmd.offset_within_block = 0;
             }
-			if(total_blocks == 0)
+			if(rw_cmd.block_count == 0)
 			{
 				ReturnCommandStatus();
 				msc_state = MSC_READY;
 			}
+#endif
 			break;
-		case MSC_CSW_SEND:
-			/* Return command status block to the host */
-			ReturnCommandStatus();
-			msc_state = MSC_READY;
+		case MSC_DATA_OUT:
+            Endpoint_SelectEndpoint(MASS_STORAGE_OUT_EPADDR);
+			circular_buffer_pools_t *cb_out = circular_buffer_pointer(MASS_STORAGE_OUT_EPADDR);
+            Endpoint_Read_Stream_LE(&cb_out->buffer[rw_cmd.offset_within_block],MASS_STORAGE_IO_EPSIZE,NULL);
+            rw_cmd.offset_within_block += MASS_STORAGE_IO_EPSIZE;
+            if(rw_cmd.offset_within_block == sector_size)
+            {
+            	rw_cmd.block_count--;
+            	rw_cmd.offset_within_block = 0;
+                if((disk_write(0,cb_out->buffer,rw_cmd.block_address++,1)))
+                {
+				    msc_state = MSC_ERROR;
+                    break;
+                }
+            }
+			if(rw_cmd.block_count == 0)
+			{
+				ReturnCommandStatus();
+				msc_state = MSC_READY;
+			}
 			break;
 		case MSC_ERROR:
 			Endpoint_SelectEndpoint(MASS_STORAGE_OUT_EPADDR);

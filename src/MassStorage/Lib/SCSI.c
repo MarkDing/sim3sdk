@@ -92,7 +92,7 @@ static SCSI_Request_Sense_Response_t SenseData =
 	};
 
 extern uint8_t sec_buf[];
-
+read_write_command_t rw_cmd;
 
 /** Main routine to process the SCSI command located in the Command Block Wrapper read from the host. This dispatches
  *  to the appropriate SCSI command handling routine if the issued command is supported by the device, else it returns
@@ -138,7 +138,6 @@ bool SCSI_DecodeSCSICommand(void)
 			/* These commands should just succeed, no handling required */
 			CommandSuccess = true;
 			CommandBlock.DataTransferLength = 0;
-			msc_state = 0x55;
 			break;
 		default:
 			/* Update the SENSE key to reflect the invalid command */
@@ -304,10 +303,7 @@ static bool SCSI_Command_Send_Diagnostic(void)
  *
  *  \return Boolean \c true if the command completed successfully, \c false otherwise.
  */
-extern volatile uint32_t msTicks;
-uint32_t total_blocks;
-uint32_t BlockAddress;
-uint32_t offset_within_block;
+
 static bool SCSI_Command_ReadWrite_10(const bool IsDataRead)
 {
 	uint32_t blks;
@@ -323,11 +319,11 @@ static bool SCSI_Command_ReadWrite_10(const bool IsDataRead)
 		return false;
 	}
 
-	BlockAddress = SwapEndian_32(*(uint32_t*)&CommandBlock.SCSICommandData[2]);
-	total_blocks  = SwapEndian_16(*(uint16_t*)&CommandBlock.SCSICommandData[7]);
+	rw_cmd.block_address = SwapEndian_32(*(uint32_t*)&CommandBlock.SCSICommandData[2]);
+	rw_cmd.block_count  = SwapEndian_16(*(uint16_t*)&CommandBlock.SCSICommandData[7]);
 
 	/* Check if the block address is outside the maximum allowable value for the LUN */
-	if (BlockAddress >= sector_count)
+	if (rw_cmd.block_address >= sector_count)
 	{
 		/* Block address is invalid, update SENSE key and return command fail */
 		SCSI_SET_SENSE(SCSI_SENSE_KEY_ILLEGAL_REQUEST,
@@ -337,67 +333,50 @@ static bool SCSI_Command_ReadWrite_10(const bool IsDataRead)
 		return false;
 	}
 
-	#if (TOTAL_LUNS > 1)
-	/* Adjust the given block address to the real media address based on the selected LUN */
-	BlockAddress += ((uint32_t)CommandBlock.LUN * LUN_MEDIA_BLOCKS);
-	#endif
 
-
-	blks = total_blocks;
+	blks = rw_cmd.block_count;
 	/* Determine if the packet is a READ (10) or WRITE (10) command, call appropriate function */
 	if (IsDataRead == DATA_READ)
 	{
+#if 1
 	    while(blks--)
 	    {
 	        Endpoint_SelectEndpoint(MASS_STORAGE_IN_EPADDR);
-//            SI32_PBSTD_A_write_pins_low(SI32_PBSTD_2, 0x400); // PB2.10
-            if((result = disk_read(0,sec_buf,BlockAddress++,1)))
+			circular_buffer_pools_t *cb_in = circular_buffer_pointer(MASS_STORAGE_IN_EPADDR);
+            if((result = disk_read(0,cb_in->buffer,rw_cmd.block_address++,1)))
             {
                 break;
             }
-//            SI32_PBSTD_A_write_pins_high(SI32_PBSTD_2, 0x400);
-//            SI32_PBSTD_A_write_pins_low(SI32_PBSTD_2, 0x800); // PB2.11
-            Endpoint_Write_Stream_LE(sec_buf, sector_size, NULL);
-//            SI32_PBSTD_A_write_pins_high(SI32_PBSTD_2, 0x800);
-            /* Finalize the stream transfer to send the last packet */
+            Endpoint_Write_Stream_LE(cb_in->buffer, sector_size, NULL);
             Endpoint_ClearIN();
 	    }
+#else
+        Endpoint_SelectEndpoint(MASS_STORAGE_IN_EPADDR);
+		circular_buffer_pools_t *cb_in = circular_buffer_pointer(MASS_STORAGE_IN_EPADDR);
+        if((result = disk_read(0,cb_in->buffer,rw_cmd.block_address++,1)))
+        {
+            goto rw_error;
+        }
+        Endpoint_Write_Stream_LE(cb_in->buffer, MASS_STORAGE_IO_EPSIZE, NULL);
+        rw_cmd.offset_within_block = MASS_STORAGE_IO_EPSIZE;
+        msc_state = MSC_DATA_IN;
+        Endpoint_ClearIN();
+#endif
 	}
 	else
 	{
-#if 0
-//        circular_buffer_pools_t *cb_out = circular_buffer_pointer(MASS_STORAGE_OUT_EPADDR);
-        while(blks--)
-        {
-            Endpoint_SelectEndpoint(MASS_STORAGE_OUT_EPADDR);
-            if(Endpoint_Read_Stream_LE(sec_buf,sector_size,NULL))
-            {
-                break;
-            }
-//            SI32_PBSTD_A_write_pins_low(SI32_PBSTD_2, 0x800); // PB2.11
-//            circular_buffer_read(cb_out,sec_buf,sector_size,1);
-//            SI32_PBSTD_A_write_pins_high(SI32_PBSTD_2, 0x800);
-//            SI32_PBSTD_A_write_pins_low(SI32_PBSTD_2, 0x400); // PB2.10
-            if((result = disk_write(0,sec_buf,BlockAddress++,1)))
-            {
-                break;
-            }
-//            SI32_PBSTD_A_write_pins_high(SI32_PBSTD_2, 0x400);
-        }
-#else
-        offset_within_block = 0;
+        rw_cmd.offset_within_block = 0;
         msc_state = MSC_DATA_OUT;
-#endif
 	}
 
 	/* Update the bytes transferred counter and succeed the command */
-	CommandBlock.DataTransferLength -= ((uint32_t)total_blocks * sector_size);
+	CommandBlock.DataTransferLength -= (rw_cmd.block_count * sector_size);
 
 	if(result == 0)
 	{
         return true;
 	}
-//error:
+rw_error:
 	SCSI_SET_SENSE(SCSI_SENSE_KEY_HARDWARE_ERROR,
         SCSI_ASENSE_NO_ADDITIONAL_INFORMATION,
                SCSI_ASENSEQ_NO_QUALIFIER);

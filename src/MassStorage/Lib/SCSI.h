@@ -137,6 +137,12 @@ extern uint32_t offset_within_block;
 			uint8_t  SenseKeySpecific[3];
 		} MS_SCSI_Request_Sense_Response_t;
 
+		typedef struct{
+			uint32_t block_count;
+			uint32_t block_address;
+			uint32_t offset_within_block;
+		}read_write_command_t;
+		extern read_write_command_t rw_cmd;
 	/* Function Prototypes: */
 		bool SCSI_DecodeSCSICommand(void);
 
