@@ -79,6 +79,7 @@ BYTE CardType;			/* Card type flags */
 static int power_status (void)		/* Socket power state: 0=off, 1=on */
 {
 //	return (PORTE & _BV(7)) ? 0 : 1;
+	return 1;
 }
 
 static void power_on (void)

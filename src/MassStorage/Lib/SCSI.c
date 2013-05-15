@@ -91,7 +91,7 @@ static SCSI_Request_Sense_Response_t SenseData =
 		.AdditionalLength    = 0x0A,
 	};
 
-uint8_t sec_buf[512];
+extern uint8_t sec_buf[];
 
 
 /** Main routine to process the SCSI command located in the Command Block Wrapper read from the host. This dispatches
@@ -138,6 +138,7 @@ bool SCSI_DecodeSCSICommand(void)
 			/* These commands should just succeed, no handling required */
 			CommandSuccess = true;
 			CommandBlock.DataTransferLength = 0;
+			msc_state = 0x55;
 			break;
 		default:
 			/* Update the SENSE key to reflect the invalid command */
@@ -169,7 +170,7 @@ static bool SCSI_Command_Inquiry(void)
 {
 	uint16_t AllocationLength  = SwapEndian_16(*(uint16_t*)&CommandBlock.SCSICommandData[3]);
 	uint16_t BytesTransferred  = MIN(AllocationLength, sizeof(InquiryData));
-	uint8_t * ptr = &InquiryData;
+	uint8_t * ptr = (uint8_t *)&InquiryData;
 
 	if (CommandBlock.SCSICommandData[1] & 0x01)/*Evpd is set*/
     {
@@ -305,10 +306,10 @@ static bool SCSI_Command_Send_Diagnostic(void)
  */
 extern volatile uint32_t msTicks;
 uint32_t total_blocks;
+uint32_t BlockAddress;
 uint32_t offset_within_block;
 static bool SCSI_Command_ReadWrite_10(const bool IsDataRead)
 {
-	uint32_t BlockAddress;
 	uint32_t blks;
 	uint32_t result = 0;
 	/* Check if the disk is write protected or not */
@@ -396,7 +397,7 @@ static bool SCSI_Command_ReadWrite_10(const bool IsDataRead)
 	{
         return true;
 	}
-error:
+//error:
 	SCSI_SET_SENSE(SCSI_SENSE_KEY_HARDWARE_ERROR,
         SCSI_ASENSE_NO_ADDITIONAL_INFORMATION,
                SCSI_ASENSEQ_NO_QUALIFIER);

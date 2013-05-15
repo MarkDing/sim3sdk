@@ -100,8 +100,10 @@ extern void EVENT_USB_common_request(void);
 //==============================================================================
 void USB0_IRQHandler(void)
 {
+#if USB_CDC
     SI32_USBEP_A_Type * ep;
     circular_buffer_pools_t *cb_in, *cb_out;
+#endif
     uint32_t usb_cmint_mask = SI32_USB_A_read_cmint(SI32_USB_0);
     uint32_t usb_ioint_mask = SI32_USB_A_read_ioint(SI32_USB_0);
 
@@ -113,9 +115,10 @@ void USB0_IRQHandler(void)
         USB0_ep0_handler();
         return;
     }
-
+#if USB_MSC
     EVENT_USB_common_request();
-#if 0
+#endif
+#if USB_CDC
     // Handle Start of Frame Interrupt
     if (usb_cmint_mask & SI32_USB_A_CMINT_SOFI_MASK)//    Use the SOF interrupt to get OUT packets being naked from host
     {

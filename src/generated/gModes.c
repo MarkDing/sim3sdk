@@ -22,6 +22,7 @@
 #include "gPB.h"
 #include "gUART0.h"
 #include "gSPI0.h"
+#include "gTIMER.h"
 #include <si32_device.h>
 
 //==============================================================================

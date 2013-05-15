@@ -131,6 +131,7 @@ void EVENT_USB_Device_ControlRequest(void)
 	}
 }
 uint32_t msc_state;
+extern uint32_t BlockAddress;
 extern uint8_t sec_buf[];
 void EVENT_USB_common_request(void)
 {
@@ -160,6 +161,11 @@ void EVENT_USB_common_request(void)
 				{
 					msc_state = MSC_CSW_SEND;
 				}
+				if(msc_state == 0x55)
+				{
+					ReturnCommandStatus();
+					msc_state = MSC_READY;
+				}
 			}
 			break;
 		case MSC_DATA_IN:
@@ -171,10 +177,16 @@ void EVENT_USB_common_request(void)
             if(offset_within_block == 512)
             {
             	total_blocks--;
+            	offset_within_block = 0;
+                if((disk_write(0,sec_buf,BlockAddress++,1)))
+                {
+                    break;
+                }
             }
 			if(total_blocks == 0)
 			{
-				msc_state = MSC_CSW_SEND;
+				ReturnCommandStatus();
+				msc_state = MSC_READY;
 			}
 			break;
 		case MSC_CSW_SEND:
@@ -203,7 +215,6 @@ void EVENT_USB_common_request(void)
  */
 void MassStorage_Task(void)
 {
-    uint32_t tmp = 0;
 	/* Device must be connected and configured for the task to run */
 	if (USB_DeviceState != DEVICE_STATE_Configured)
 	  return;
@@ -230,7 +241,6 @@ void MassStorage_Task(void)
 		/* Return command status block to the host */
 		ReturnCommandStatus();
 	}
-#endif
 	/* Check if a Mass Storage Reset occurred */
 	if (IsMassStoreReset)
 	{
@@ -248,6 +258,7 @@ void MassStorage_Task(void)
 		/* Clear the abort transfer flag */
 		IsMassStoreReset = false;
 	}
+#endif
 }
 
 /** Function to read in a command block from the host, via the bulk data OUT endpoint. This function reads in the next command block

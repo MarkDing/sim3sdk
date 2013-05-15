@@ -211,7 +211,7 @@ int16_t CDC_Device_ReceiveByte(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInf
 
 	if(!circular_buffer_is_empty(cb))
 	{
-	    circular_buffer_pop(cb,&ReceivedByte);
+	    circular_buffer_pop(cb,(uint8_t *)&ReceivedByte);
 	}
 
 	return ReceivedByte;
@@ -229,7 +229,7 @@ uint8_t CDC_Device_SendByte(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo,
 
     if(!circular_buffer_is_full(cb))
     {
-        circular_buffer_push(cb, &Data);
+        circular_buffer_push(cb, (uint8_t *)&Data);
     }
     return ENDPOINT_READYWAIT_NoError;
 }
@@ -249,7 +249,7 @@ uint8_t CDC_Device_SendData(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInfo,
     {
         return ENDPOINT_RWSTREAM_IncompleteTransfer;
     }
-    circular_buffer_write(cb, Buffer, Length, 1);
+    circular_buffer_write(cb, (uint8_t *)Buffer, Length, 1);
     return ENDPOINT_RWSTREAM_NoError;
 }
 
@@ -267,7 +267,7 @@ uint8_t CDC_Device_ReceiveData(USB_ClassInfo_CDC_Device_t* const CDCInterfaceInf
     {
         return ENDPOINT_RWSTREAM_IncompleteTransfer;
     }
-    circular_buffer_read(cb, Buffer, Length, 1);
+    circular_buffer_read(cb, (uint8_t *)Buffer, Length, 1);
     return ENDPOINT_RWSTREAM_NoError;
 }
 

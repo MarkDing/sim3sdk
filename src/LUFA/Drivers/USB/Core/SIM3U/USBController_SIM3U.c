@@ -84,7 +84,9 @@ void USB_Init(const uint8_t Options)
 	SI32_USB_A_enable_suspend_interrupt (SI32_USB_0);
 //	SI32_USB_A_enable_resume_interrupt (SI32_USB_0);
 	SI32_USB_A_enable_reset_interrupt (SI32_USB_0);
+#if USB_CDC
 	SI32_USB_A_enable_start_of_frame_interrupt (SI32_USB_0);
+#endif
 	// Enable USB interrupts
     NVIC_SetPriority(USB0_IRQn, USB0_InterruptPriority);
 	NVIC_EnableIRQ(USB0_IRQn);

@@ -78,7 +78,8 @@ void UART0_IRQHandler()
  */
 void UART0_rx_data_req_handler(void)
 {
-    uint32_t count, rece_data;
+    uint32_t count;
+    uint8_t rece_data;
     circular_buffer_pools_t * cb = circular_buffer_pointer(0x82); // EP2 IN
 
     stop_timer(1); // timer0H for EP2
