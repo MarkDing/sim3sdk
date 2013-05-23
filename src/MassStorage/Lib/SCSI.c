@@ -7,7 +7,7 @@
 */
 
 /*
-  Copyright 2013  Dean Camera (dean [at] fourwalledcubicle [dot] com)
+  Copyright 2013  Mark Ding (mark.ding@hotmail.com)
 
   Permission to use, copy, modify, distribute, and sell this
   software and its documentation for any purpose is hereby granted
@@ -91,7 +91,7 @@ static SCSI_Request_Sense_Response_t SenseData =
 		.AdditionalLength    = 0x0A,
 	};
 
-extern uint8_t sec_buf[];
+
 read_write_command_t rw_cmd;
 
 /** Main routine to process the SCSI command located in the Command Block Wrapper read from the host. This dispatches
